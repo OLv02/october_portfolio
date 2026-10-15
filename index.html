@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#04060c">
+<meta name="color-scheme" content="dark">
+<style>html{background:#04060c}</style>
+<title>Owen Lavender</title>
+<meta name="description" content="Owen Lavender, Foreign Direct Investment Specialist at Invest Ottawa. International business graduate of Carleton University's Sprott School of Business, working in English, French and German.">
+<link rel="canonical" href="https://olv02.github.io/october_portfolio/">
+<meta property="og:type" content="profile">
+<meta property="og:site_name" content="Owen Lavender">
+<meta property="og:url" content="https://olv02.github.io/october_portfolio/">
+<meta property="og:title" content="Owen Lavender">
+<meta property="og:description" content="Foreign direct investment, from Ottawa to the world, drawn in 180,000 stars.">
+<meta property="og:image" content="https://olv02.github.io/october_portfolio/assets/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A globe drawn in stars with Ottawa marked, beside Owen Lavender's name">
+<meta property="profile:first_name" content="Owen">
+<meta property="profile:last_name" content="Lavender">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<noscript><link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"></noscript>
+<link rel="preload" href="assets/globe.png" as="fetch" crossorigin>
+<link rel="modulepreload" href="js/vendor/three.module.min.js">
+<link rel="modulepreload" href="js/main.js">
+<link rel="stylesheet" href="style.css">
+<script src="js/boot.js"></script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "Owen Lavender",
+  "url": "https://olv02.github.io/october_portfolio/",
+  "jobTitle": "Foreign Direct Investment Specialist",
+  "worksFor": { "@type": "Organization", "name": "Invest Ottawa" },
+  "email": "mailto:owen.lavender.02@gmail.com",
+  "address": { "@type": "PostalAddress", "addressLocality": "Ottawa", "addressRegion": "ON", "addressCountry": "CA" },
+  "alumniOf": [
+    { "@type": "CollegeOrUniversity", "name": "Carleton University" },
+    { "@type": "CollegeOrUniversity", "name": "Universität Leipzig" }
+  ],
+  "knowsLanguage": ["en", "fr", "de"],
+  "knowsAbout": ["Foreign direct investment", "Investment attraction", "International business", "Stakeholder relations", "CRM pipeline reporting"],
+  "sameAs": ["https://www.linkedin.com/in/owenlavender"]
+}
+</script>
+</head>
+<body>
+<canvas id="gl" aria-hidden="true"></canvas>
+<div id="lvh" aria-hidden="true"></div>
+
+<a class="skip" href="#about">Skip to content</a>
+<div id="gate" role="status">
+  <div class="gate-inner">
+    <p class="gate-title"><span class="gt gt-a" id="gate-text" data-i18n-skip>Gathering <b id="gate-n">110,000</b> stars</span><span class="gt gt-b" aria-hidden="true">Look closer.</span></p>
+    <div class="gate-bar" aria-hidden="true"><i id="gate-fill"></i></div>
+    <p class="gate-status" aria-hidden="true"><span id="gate-count">0</span><span id="gate-pct">0%</span></p>
+  </div>
+</div>
+
+<header class="chrome">
+  <a class="brand" href="#top" data-go aria-label="Owen Lavender, back to the top"><b>OL</b><span>Owen Lavender</span></a>
+  <div class="chrome-r">
+    <div class="lang-wrap"><div class="lang" id="lang" role="group" aria-label="Language">
+      <button type="button" data-lang="en" aria-pressed="true" lang="en" title="English" data-i18n-skip>EN</button>
+      <button type="button" data-lang="fr" aria-pressed="false" lang="fr" title="Français" data-i18n-skip>FR</button>
+      <button type="button" data-lang="de" aria-pressed="false" lang="de" title="Deutsch" data-i18n-skip>DE</button>
+    </div></div>
+    <button id="menu-btn" class="menu-btn" type="button" aria-expanded="false" aria-controls="menu"><span>Menu</span><i aria-hidden="true"></i></button>
+    <button id="sound" class="sound" type="button" data-on="1" aria-label="Mute sound" data-i18n-skip><i></i><i></i><i></i><i></i></button>
+  </div>
+</header>
+
+<div id="menu" class="menu" aria-hidden="true">
+  <nav class="menu-inner" aria-label="Sections">
+    <ol class="menu-list">
+      <li><a href="#about" data-go><span>01</span>About</a></li>
+      <li><a href="#work" data-go><span>02</span>Work</a></li>
+      <li><a href="#highlights" data-go><span>03</span>Highlights</a></li>
+      <li><a href="#leadership" data-go><span>04</span>Leadership</a></li>
+      <li><a href="#writing" data-go><span>05</span>Writing</a></li>
+      <li><a href="#education" data-go><span>06</span>Education</a></li>
+      <li><a href="#awards" data-go><span>07</span>Awards</a></li>
+      <li><a href="#contact" data-go><span>08</span>Contact</a></li>
+    </ol>
+    <div class="menu-foot">
+      <a href="#top" data-go>Back to the top ↑</a>
+      <a href="https://olv02.github.io/blog/">The blog ↗</a>
+    </div>
+  </nav>
+</div>
+
+<div class="hint" id="hint" data-i18n-skip><span>Scroll to explore</span><i></i></div>
+<div id="q" class="q" aria-hidden="true" hidden></div>
+
+<main id="top">
+  <section id="journey" aria-label="Introduction">
+    <div class="hero" id="hero">
+      <h1>OWEN<br><span class="thin">LAVENDER</span></h1>
+      <p class="title">Foreign Direct Investment Specialist</p>
+    </div>
+  </section>
+
+  <!-- these ride over the tunnel -->
+  <div id="flight" class="content">
+    <!-- 01 ABOUT -->
+    <section class="sec" id="about" aria-labelledby="about-h">
+      <div class="sec-head reveal"><p class="idx">01</p><h2 id="about-h">About</h2></div>
+      <div class="about-text card reveal">
+        <p>I'm a Foreign Direct Investment Specialist at Invest Ottawa, where I help international companies explore and expand into Ottawa, from the first lead through the delegation visit and the follow-up.</p>
+        <p>I graduated With High Distinction from Carleton University's Sprott School of Business, with a Bachelor of International Business and minors in Economics and German. I spent a study year at Universität Leipzig in Germany, and I work in English and French, with intermediate German.</p>
+        <p>Before that, I was a head lifeguard with the City of Ottawa, a census operator at Statistics Canada, and a volunteer consultant and case competitor at Sprott.</p>
+      </div>
+      <dl class="facts card reveal">
+        <div><dt>Based in</dt><dd>Ottawa, Canada</dd></div>
+        <div><dt>Role</dt><dd>FDI Specialist, Invest Ottawa</dd></div>
+        <div><dt>Studied</dt><dd>International Business, Carleton University</dd></div>
+        <div><dt>Languages</dt><dd>English · French · German</dd></div>
+      </dl>
+      <div class="toolkit card reveal">
+        <h3>Toolkit</h3>
+        <div class="kit"><p class="k">Focus</p><ul class="chips"><li>Foreign direct investment</li><li>Investment attraction</li><li>Delegations and missions</li><li>Stakeholder relations</li><li>Pipeline reporting</li></ul></div>
+        <div class="kit"><p class="k">Practice</p><ul class="chips"><li>Lead generation</li><li>Needs assessments</li><li>Process improvement</li><li>Market and competitor research</li><li>Client triage</li></ul></div>
+        <div class="kit"><p class="k">Tools</p><ul class="chips"><li>Global Runway CRM</li><li>CRM dashboards</li><li>Microsoft Copilot</li><li>Excel</li><li>Microsoft 365</li></ul></div>
+        <div class="kit"><p class="k">Languages</p><ul class="chips"><li>English</li><li>French (certified working proficiency)</li><li>German (intermediate)</li></ul></div>
+      </div>
+    </section>
+
+    <!-- 02 WORK -->
+    <section class="sec" id="work" aria-labelledby="work-h">
+      <div class="sec-head reveal"><p class="idx">02</p><h2 id="work-h">Work</h2></div>
+      <ol class="jobs">
+        <li class="job card reveal">
+          <div class="job-body">
+            <p class="org-meta">OTTAWA · 2024 – PRESENT</p>
+            <h3>Invest Ottawa</h3>
+            <div class="stint">
+              <p class="job-meta">OCT 2024 – PRESENT</p>
+              <p class="role">Foreign Direct Investment Specialist</p>
+              <p class="note">Joined the team as Foreign Direct Investment Assistant in October 2024.</p>
+              <ul class="ticks">
+                <li>Coordinate end-to-end logistics for delegation visits of up to 30 people, working with 15+ public and private partners on site tours and information sessions.</li>
+                <li>Support outbound FDI missions from lead generation and meeting coordination to needs assessments and follow-up, and cut outreach preparation time by 28% with Microsoft Copilot.</li>
+                <li>Built a CRM dashboard for pipeline visibility, presented pipeline summaries that guided annual planning, and worked with the Systems team on the Global Runway CRM workflow.</li>
+                <li>Set up a booking page for lead generators that streamlined meeting coordination and prevented conflicts.</li>
+              </ul>
+            </div>
+            <div class="stint">
+              <p class="job-meta">JUL – OCT 2024</p>
+              <p class="role">Service Intake Administrator</p>
+              <ul class="ticks">
+                <li>Assessed and triaged support requests, matching founders with advisors, tools and other organizations.</li>
+                <li>Cut email composition time by 57% with Quick Parts templates and custom key bindings.</li>
+                <li>Evaluated and categorized 235 information sources into an interactive resource database, tripling the resources sent to clients and contributing to a 20% year-over-year rise in Net Promoter Score.</li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="job card reveal">
+          <div class="job-body">
+            <p class="org-meta">OTTAWA · 2019 – 2025</p>
+            <h3>City of Ottawa</h3>
+            <div class="stint">
+              <p class="job-meta">JAN 2024 – 2025</p>
+              <p class="role">Head Lifeguard</p>
+              <ul class="ticks">
+                <li>Supervised teams of up to five and ran performance evaluations that led to retraining for two staff.</li>
+                <li>Reported to supervisors and staff in writing and in meetings, giving accurate data for programming and maintenance.</li>
+              </ul>
+            </div>
+            <div class="stint">
+              <p class="job-meta">SEP 2019 – DEC 2023</p>
+              <p class="role">Lifeguard, Instructor &amp; Customer Service Representative</p>
+              <ul class="ticks">
+                <li>Enforced safety policies, handled payments and taught swim lessons, working with parents and supervisors.</li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="job card reveal">
+          <div class="job-body">
+            <p class="org-meta">OTTAWA · 2021</p>
+            <h3>Statistics Canada</h3>
+            <div class="stint">
+              <p class="job-meta">APR – AUG 2021</p>
+              <p class="role">Census Operator</p>
+              <ul class="ticks">
+                <li>Answered bilingual inquiries with 15% faster talk time and 50% less hold time than the department average.</li>
+              </ul>
+            </div>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- 03 HIGHLIGHTS: missions abroad and delegations (the original's Networking section, repurposed).
+         Each card takes an optional photo: <img src="assets/img/….webp" width="…" height="…" alt="…" loading="lazy" decoding="async"> as its first child. -->
+    <section class="sec" id="highlights" aria-labelledby="highlights-h">
+      <div class="sec-head reveal"><p class="idx">03</p><h2 id="highlights-h">Highlights</h2></div>
+      <div class="highlights">
+        <figure class="highlight card reveal">
+          <figcaption>
+            <p class="mono">INVEST OTTAWA · OUTBOUND MISSIONS</p>
+            <h3>Missions abroad</h3>
+            <p>Supporting Invest Ottawa's outbound investment missions end to end, from lead generation and meeting coordination to needs assessments and follow-up.</p>
+          </figcaption>
+        </figure>
+        <figure class="highlight card reveal">
+          <figcaption>
+            <p class="mono">OTTAWA · INBOUND DELEGATIONS</p>
+            <h3>Welcoming delegations to Ottawa</h3>
+            <p>Hosting international delegations of up to 30 people, with site tours and information sessions alongside more than 15 public and private partners.</p>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+  </div>
+
+  <!-- two beats with nothing in the way: through the sun, then the vault opens -->
+  <div id="beat-sun" class="beat" aria-hidden="true"></div>
+  <div id="beat-vault" class="beat beat-vault" aria-hidden="true"></div>
+
+  <!-- the rest of the page scrolls over the open vault -->
+  <div id="after" class="content">
+    <!-- 04 LEADERSHIP (the original's Projects section, repurposed) -->
+    <section class="sec" id="leadership" aria-labelledby="leadership-h">
+      <div class="sec-head reveal"><p class="idx">04</p><h2 id="leadership-h">Leadership</h2></div>
+      <div class="projects">
+        <article class="proj card reveal">
+          <p class="mono">SPROTT STUDENT CONSULTING GROUP · JAN – APR 2024</p>
+          <h3>Project Analyst</h3>
+          <ul class="ticks">
+            <li>Interviewed competing firms to write case studies and identify best practices for a Carleton charity initiative.</li>
+            <li>Analyzed organizational data in Excel to forecast sales volume and find high-value consumer segments.</li>
+          </ul>
+        </article>
+        <article class="proj card reveal">
+          <p class="mono">JDCC SPROTT · OCT 2023 – MAR 2024</p>
+          <h3>International Business Delegate</h3>
+          <ul class="ticks">
+            <li>Led a three-person team that won Half Delegation of the Year at a national case competition.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- 05 WRITING: the latest posts from the blog (site.js fills this from its RSS feed; these two cards stay if it can't) -->
+    <section class="sec" id="writing" aria-labelledby="writing-h">
+      <div class="sec-head reveal"><p class="idx">05</p><h2 id="writing-h">Writing</h2></div>
+      <h3 class="sub reveal">Latest posts</h3>
+      <div class="essays" id="essays" aria-live="polite">
+        <a class="essay card more reveal" href="https://olv02.github.io/blog/"><p class="mono">BLOG</p><h4>Notes on investment, Ottawa and international business</h4><p class="go">Read the blog ↗</p></a>
+        <a class="essay card more reveal" href="https://olv02.github.io/rss.xml"><p class="mono">RSS</p><h4>Follow new posts in your feed reader</h4><p class="go">Subscribe ↗</p></a>
+      </div>
+    </section>
+
+    <!-- 06 EDUCATION -->
+    <section class="sec" id="education" aria-labelledby="education-h">
+      <div class="sec-head reveal"><p class="idx">06</p><h2 id="education-h">Education</h2></div>
+      <div class="edu">
+        <article class="edu-card card reveal">
+          <div class="edu-body">
+            <p class="job-meta"><span>SEP 2020 – APR 2024 · OTTAWA</span><b class="badge">WITH HIGH DISTINCTION</b></p>
+            <h3>Carleton University</h3>
+            <p class="role">Bachelor of International Business, Sprott School of Business</p>
+            <ul class="chips"><li>Minor in Economics</li><li>Minor in German</li><li>Senate Medal</li><li>Swiss Ambassador's Award</li></ul>
+          </div>
+        </article>
+        <article class="edu-card card reveal">
+          <div class="edu-body">
+            <p class="job-meta"><span>STUDY YEAR ABROAD · LEIPZIG, GERMANY</span></p>
+            <h3>Universität Leipzig</h3>
+            <p class="role">Exchange year in economics and political science</p>
+            <ul class="chips"><li>Economics</li><li>Political science</li><li>German</li></ul>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- 07 AWARDS -->
+    <section class="sec" id="awards" aria-labelledby="awards-h">
+      <div class="sec-head reveal"><p class="idx">07</p><h2 id="awards-h">Awards</h2></div>
+      <div class="awards">
+        <article class="award card reveal">
+          <p class="mono">CARLETON UNIVERSITY · 2024</p>
+          <h3>Senate Medal for Outstanding Academic Achievement</h3>
+          <p>Awarded on graduating With High Distinction from the Bachelor of International Business.</p>
+        </article>
+        <article class="award card reveal">
+          <p class="mono">CARLETON UNIVERSITY · 2024</p>
+          <h3>Swiss Ambassador's Award</h3>
+        </article>
+        <article class="award card reveal">
+          <p class="mono">JDCC · NATIONAL CASE COMPETITION · 2024</p>
+          <h3>Half Delegation of the Year</h3>
+          <p>Won with the three-person Sprott team I led.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- 08 CONTACT -->
+    <section class="sec" id="contact" aria-labelledby="contact-h">
+      <div class="sec-head reveal"><p class="idx">08</p><h2 id="contact-h">Let's talk</h2></div>
+      <div class="contact card reveal">
+        <div class="contact-main">
+          <p class="contact-lede">Exploring Ottawa for your company, planning a delegation, or just want to connect? Email is the fastest way to reach me.</p>
+          <p class="mail-row"><a class="mail" href="mailto:owen.lavender.02@gmail.com">owen.lavender.02@gmail.com</a><button class="copy" type="button" data-copy="owen.lavender.02@gmail.com" data-i18n-skip>Copy</button></p>
+          <dl class="facts plain">
+            <div><dt>Based in</dt><dd>Ottawa, Ontario, Canada</dd></div>
+            <div><dt>Languages</dt><dd>English · French · German</dd></div>
+          </dl>
+        </div>
+        <nav class="contact-links" aria-label="Elsewhere">
+          <p class="k">Elsewhere</p>
+          <ul>
+            <li><a href="https://www.linkedin.com/in/owenlavender" target="_blank" rel="noopener"><b>LinkedIn</b><span>in/owenlavender</span><i aria-hidden="true">↗</i></a></li>
+            <li><a href="https://olv02.github.io/blog/"><b>Blog</b><span>olv02.github.io/blog</span><i aria-hidden="true">↗</i></a></li>
+          </ul>
+        </nav>
+      </div>
+      <footer class="site-foot">
+        <p><b>Owen Lavender</b> · Foreign Direct Investment Specialist · Ottawa</p>
+        <p>© <span id="year">2026</span> Owen Lavender · <a href="#top" data-go>Back to the top ↑</a></p>
+        <p class="credit" data-i18n-html="credit">Built on <a href="https://realarmaansidhu.com/" target="_blank" rel="noopener">Armaan Sidhu's</a> site code, with three.js</p>
+      </footer>
+    </section>
+  </div>
+</main>
+
+<script type="module" src="js/i18n.js"></script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

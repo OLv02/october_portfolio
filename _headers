@@ -1,0 +1,21 @@
+# Response headers for Cloudflare Pages. tools/serve.py applies the same rules locally.
+
+/*
+  ! Access-Control-Allow-Origin
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: SAMEORIGIN
+  Cross-Origin-Opener-Policy: same-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+
+# The main page runs only its own scripts. Fonts come from Google and the latest posts from the blog's RSS feed.
+# GitHub Pages ignores this file (it's Cloudflare Pages' format); tools/serve.py applies it locally, so the policy is still tested.
+/
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com 'sha256-1/REc0efQ11SHCjaDgqSYK7tU26f0agoIe3LUiCLa3Y='; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://olv02.github.io; media-src 'self' data:; worker-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'self'
+/index.html
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com 'sha256-1/REc0efQ11SHCjaDgqSYK7tU26f0agoIe3LUiCLa3Y='; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://olv02.github.io; media-src 'self' data:; worker-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'self'
+
+/js/vendor/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=2592000
+/assets/img/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=2592000
