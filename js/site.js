@@ -107,7 +107,7 @@ function cardGlow() {
 // For anyone who opens the console.
 function hello() {
   console.log(
-    '%cHello, curious one.%c\nNo framework, no build step: three.js, a few shaders and a lot of stars, on code from Armaan Sidhu\'s site.\nSay hi: owen.lavender.02@gmail.com',
+    '%cHello, curious one.%c\nNo framework, no build step: three.js, a few shaders and a lot of stars, based on Armaan Sidhu\'s site.\nSay hi: owen.lavender.02@gmail.com',
     'font: 600 15px "Space Grotesk", system-ui, sans-serif; color: #6fe0b2;',
     'font: 12px "JetBrains Mono", ui-monospace, monospace; color: #8f9bb3;',
   );
