@@ -5,20 +5,19 @@ import * as THREE from './vendor/three.module.min.js';
 import Lenis from './vendor/lenis.mjs';
 import { TUN, pathPos, pathBank } from './path.js';
 import { TIERS, detectDevice, AdaptiveQuality } from './quality.js';
-import { mulberry32, buildMain, buildLaptop, buildGadgets } from './build-data.js';
-import { createGadgets, setGadgetBudget, carLoop } from './gadgets.js';
-import { createMainSystem, createLaptop, createOccluder } from './particles.js';
+import { mulberry32, buildMain } from './build-data.js';
+import { createMainSystem, createOccluder, createSeedAtlas, setSeedCount } from './particles.js';
 import { Sky } from './sky.js';
 import { Solar } from './solar.js';
 import { TunnelFX } from './fx.js';
-import { Iris } from './iris.js';
 import { Post } from './post.js';
 import { Sound } from './audio.js';
 import { computeLayout } from './layout.js';
 import { GLOBE } from './globe-meta.js';
 import { initSite, layoutTop } from './site.js';
 import { t, locale, onLangChange, beforeLangChange } from './i18n.js';
-import { bgHex } from './theme.js';
+import { bgHex, THEME } from './theme.js';
+import { CONFIG, PROFILES, TIER_SEEDS, profileFor } from './config.js';
 
 THREE.ColorManagement.enabled = false;
 
@@ -32,7 +31,7 @@ const LIVE = Q.has('shot') && Q.has('live');
 const EMBED = Q.has('embed'); // running inside devices.html
 const device = detectDevice();
 const REDUCED = device.reducedMotion;
-const S0 = 2.3, REF_COUNT = 165000, K_SIZE = 0.24, L = TUN.L;
+const S0 = 2.3, K_SIZE = 0.24, L = TUN.L;
 
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 const seg = (x, a, b) => clamp01((x - a) / (b - a));
@@ -74,8 +73,6 @@ scene.add(solar.group);
 const fx = new TunnelFX(R, sampleTier.glyphs, eye);
 fx.addTo(scene);
 fx.setGlyphs(tier.glyphs);
-const iris = new Iris(R, Math.round(sampleTier.count / 11));
-scene.add(iris.points);
 const post = new Post(renderer, hdrType);
 post.u.uTaps.value = REDUCED ? 0 : tier.zoomTaps;
 post.u.uGrain.value = device.coarse ? 0.028 : 0.035;
@@ -83,11 +80,11 @@ const sound = new Sound();
 // the device lab passes the safe-area insets a real phone would report
 if (EMBED && Q.get('safe')) Q.get('safe').split(',').forEach((v, i) => document.documentElement.style.setProperty(['--safe-t', '--safe-r', '--safe-b', '--safe-l'][i], (+v || 0) + 'px'));
 
-let mainSys = null, laptopSys = null, occluder = null, gadgets = null;
-// The objects floating around the landing screen. The original's (a laptop, 'glasses', 'pocket', 'drone', 'car') were
-// Armaan's own things, so they're off until Owen's are drawn in build-data.js and placed in layout.js.
-const GADGETS = [];
-const SHOW_LAPTOP = false;
+let mainSys = null, occluder = null;
+// The live copy of the settings: the committed defaults from config.js, plus the device profile's seed look
+const tune = { ...structuredClone(CONFIG), profileName: profileFor({ phone: device.phone, width: innerWidth }) };
+Object.assign(tune, { profile: { ...PROFILES[tune.profileName] } });
+const seedBudget = () => Math.min(tune.profile.seeds, TIER_SEEDS[tier.name] || tune.structure.capacity, tune.structure.capacity);
 
 // ---------- scroll → flight: beats anchored to the page, so the words and the flight stay in step ----------
 // [scroll y, flight progress]: the hero holds · dive into the eye · the tunnel runs under About, Work and Projects ·
@@ -135,7 +132,6 @@ function resize(force) {
   camera.aspect = W / H;
   const eb = heroEl.firstElementChild.getBoundingClientRect(), hb = document.querySelector('.chrome').getBoundingClientRect();
   layout = computeLayout(W, H, S0, vaultCenter, { textTop: eb.top - (parseFloat(heroEl.style.transform.split(',')[1]) || 0), headerBottom: hb.bottom + 8 });
-  if (laptopSys) placeLaptop();
   computeBeats();
 }
 addEventListener('resize', () => resize(false));
@@ -144,18 +140,9 @@ if (document.fonts) { document.fonts.ready.then(() => resize(true)); document.fo
 addEventListener('orientationchange', () => setTimeout(() => resize(true), 250));
 resize(true);
 
-function placeLaptop() {
-  const l = layout.laptop;
-  laptopSys.group.position.copy(l.pos);
-  laptopSys.group.rotation.copy(l.rot);
-  laptopSys.group.scale.setScalar(l.scale);
-}
-
 function applyTier(t) {
   tier = t;
-  if (mainSys) { const n = Math.min(mainSys.total, t.count); mainSys.geometry.setDrawRange(0, n); mainSys.uniforms.uSizeK.value = Math.sqrt(REF_COUNT / n); }
-  if (laptopSys) { const n = Math.min(laptopSys.total, t.laptop); laptopSys.geometry.setDrawRange(0, n); laptopSys.uniforms.uSizeK.value = Math.sqrt(26000 / n); }
-  if (gadgets) setGadgetBudget(gadgets, t.name === 'high' ? 1 : t.name === 'med' ? 0.75 : 0.5);
+  if (mainSys) setSeedCount(mainSys, seedBudget());
   sky.setDust(Math.min(t.dust, sampleTier.dust));
   fx.setGlyphs(Math.min(t.glyphs, sampleTier.glyphs));
   post.u.uTaps.value = REDUCED ? 0 : t.zoomTaps;
@@ -180,9 +167,9 @@ const site = initSite({ scrollTo: scrollToTarget, lockScroll: (on) => { if (leni
 
 // ---------- loading: fetch the globe image with real progress, build in a worker ----------
 const gateFill = $('gate-fill'), gatePct = $('gate-pct'), gateCount = $('gate-count');
-const STARS = tier.count, fmtN = (n) => n.toLocaleString(locale());
+const STARS = seedBudget(), fmtN = (n) => n.toLocaleString(locale());
 function gateText() {
-  const [a, b = ''] = t('Gathering {n} stars').split('{n}'), n = document.createElement('b');
+  const [a, b = ''] = t('Gathering {n} seeds').split('{n}'), n = document.createElement('b');
   n.id = 'gate-n'; n.textContent = fmtN(STARS);
   $('gate-text').replaceChildren(a, n, b);
 }
@@ -193,6 +180,17 @@ function progress(f) {
   gateCount.textContent = `${fmtN(Math.round(f * STARS))} / ${fmtN(STARS)}`;
 }
 
+async function loadImage(url) {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  let bmp;
+  try { bmp = await createImageBitmap(blob, { premultiplyAlpha: 'none', colorSpaceConversion: 'none' }); }
+  catch (e) { bmp = await createImageBitmap(blob); }
+  const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.drawImage(bmp, 0, 0);
+  return x.getImageData(0, 0, c.width, c.height).data;
+}
 async function loadGlobe() {
   const res = await fetch('assets/globe.png');
   const total = +res.headers.get('content-length') || 497569;
@@ -211,9 +209,9 @@ async function loadGlobe() {
   return { pixels: x.getImageData(0, 0, c.width, c.height).data, w: c.width, h: c.height, canvas: c };
 }
 
-function buildData(pix) {
-  const args = { pixels: pix.pixels, w: pix.w, h: pix.h, meta: GLOBE, N: sampleTier.count, NL: sampleTier.laptop, S0, Lt: L, seed: 7 };
-  const inline = () => ({ main: buildMain(args), laptop: buildLaptop({ N: args.NL }), gadgets: buildGadgets({}) });
+function buildData(pix, coast) {
+  const args = { pixels: pix.pixels, coast, w: pix.w, h: pix.h, meta: GLOBE, N: tune.structure.capacity, S0, coastShare: tune.globe.coastShare, roles: tune.landing.roles };
+  const inline = () => ({ main: buildMain(args) });
   if (SHOT || !window.Worker) return Promise.resolve(inline());
   return new Promise((resolve) => {
     let wk;
@@ -230,16 +228,12 @@ function buildData(pix) {
 let ready = false;
 (async () => {
   try {
-    const pix = await loadGlobe();
-    const data = await buildData(pix);
-    mainSys = createMainSystem(data.main, Math.min(sampleTier.count, tier.count), eye);
-    laptopSys = createLaptop(data.laptop, Math.min(sampleTier.laptop, tier.laptop));
+    const [pix, coast] = await Promise.all([loadGlobe(), loadImage('assets/coast.png').catch(() => null)]);
+    const data = await buildData(pix, coast && coast.length === pix.pixels.length ? coast : null);
+    mainSys = createMainSystem(data.main, seedBudget(), eye, createSeedAtlas(mulberry32(411)));
     const tex = new THREE.CanvasTexture(pix.canvas); tex.flipY = false; tex.generateMipmaps = false; tex.minFilter = THREE.LinearFilter;
-    occluder = createOccluder(tex, GLOBE, S0);
-    gadgets = createGadgets(data.gadgets);
-    scene.add(mainSys.points, laptopSys.group, occluder, ...GADGETS.map((k) => gadgets[k].group));
-    placeLaptop();
-    mainSys.uniforms.uHaloRot.value.setFromMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(0.42, 0, 0.22)));
+    occluder = createOccluder(tex, GLOBE, S0, THEME.bg.map((c) => c * 0.35));
+    scene.add(mainSys.points, mainSys.kids, occluder);
     applyTier(tier);
     progress(1);
     ready = true;
@@ -303,15 +297,13 @@ $('sound').addEventListener('click', () => {
 
 // ---------- your touch ----------
 const pointer = { ndc: new THREE.Vector2(), has: false, last: -9, world: new THREE.Vector3(), strength: 0 };
-const ripple = { world: new THREE.Vector3(), age: -1 };
 const tilt = { x: 0, y: 0, tx: 0, ty: 0 };
 let interactPlane = 0;
 function setPointer(x, y) { pointer.ndc.set((x / W) * 2 - 1, -((y / H) * 2 - 1)); pointer.has = true; pointer.last = T; }
+// a tap breathes on the seeds under it (the pointer's breeze, briefly at full strength)
 function tap(target) {
   if (!entered || (target && target.closest && target.closest('a,button,#gate,#menu,.content'))) return;
-  ripple.world.copy(pointerWorld(new THREE.Vector3()));
-  ripple.age = 0;
-  sound.blip();
+  pointer.last = T;
 }
 addEventListener('pointermove', (e) => {
   if (e.pointerType === 'touch') return;
@@ -362,11 +354,11 @@ const io = new IntersectionObserver((es) => es.forEach((e) => e.isIntersecting &
 document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
 
 // ---------- the flight ----------
-let gateFade = SHOT ? 1 : 0, pS = 0, extra = 0, prevCam = new THREE.Vector3(), spd = 0, orbit = 0, shockAge = -1;
-const cues = { chime: false, boom: false, scrape: false, click: false, clunk: false, shock: false };
+let gateFade = SHOT ? 1 : 0, pS = 0, extra = 0, prevCam = new THREE.Vector3(), spd = 0;
+let windT = 12;   // the seeds' own clock: it runs at the selected wind speed, separately from the camera
+const cues = { chime: false, boom: false };
 const camPos = new THREE.Vector3(), camTgt = new THREE.Vector3(), tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
 const fwd = new THREE.Vector3(), upV = new THREE.Vector3(), par = new THREE.Vector2();
-const m4 = new THREE.Matrix4(), eul = new THREE.Euler(0, 0, 0, 'YXZ');
 const look = { tint: new THREE.Vector3(1, 1, 1), sky: 1, stars: 1, dust: 1, shooting: 1 };
 const shot = { p: +(Q.get('p') || 0), x: +(Q.get('x') || 0), t: +(Q.get('t') || 12), intro: +(Q.get('intro') ?? 1) };
 
@@ -378,25 +370,6 @@ function frameOf(s, P, N, B) {
   B.crossVectors(N, Tn);
 }
 const _P = new THREE.Vector3(), _N = new THREE.Vector3(), _B = new THREE.Vector3();
-const camR = new THREE.Vector3(), camU = new THREE.Vector3(), camF = new THREE.Vector3();
-
-// After the vault opens, the gadgets and trilliums drift up behind the content at a fraction of the scroll speed,
-// wrapping around, so there is always something passing in the back. x is across the screen, d is depth in front of the camera.
-const FILLERS = [
-  { o: 'drone', x: 0.64, d: 7.5, ph: 0.1, sp: 0.21, size: 0.2 },
-  { o: 'trill0', x: -0.58, d: 11, ph: 0.24, sp: 0.15, size: 0.2 },
-  { o: 'glasses', x: 0.6, d: 6.5, ph: 0.38, sp: 0.24, size: 0.15 },
-  { o: 'trill1', x: -0.62, d: 12, ph: 0.52, sp: 0.13, size: 0.2 },
-  { o: 'pocket', x: 0.7, d: 7, ph: 0.66, sp: 0.2, size: 0.17 },
-  { o: 'car', x: -0.6, d: 8.5, ph: 0.8, sp: 0.18, size: 0.2 },
-  { o: 'trill2', x: 0.5, d: 13, ph: 0.94, sp: 0.12, size: 0.22 },
-];
-function fillerSpot(f, i, out) {
-  const cyc = (((f.ph + extra * f.sp) % 1) + 1) % 1, ny = -1.55 + cyc * 3.1;
-  const tH = Math.tan((camera.fov * Math.PI) / 360), aspect = W / H, nx = f.x * (layout.upright ? 0.8 : 1);
-  out.copy(camera.position).addScaledVector(camF, f.d).addScaledVector(camR, nx * f.d * tH * aspect).addScaledVector(camU, ny * f.d * tH);
-  return { fade: 1 - sm(1.05, 1.5, Math.abs(ny)), world: f.size * f.d * tH * (layout.upright ? 0.85 : 1) };
-}
 
 function update(dt) {
   // --- progress
@@ -408,18 +381,17 @@ function update(dt) {
   const introT = SHOT && entered ? shot.intro : entered ? clamp01((T - introStart) / 3.2) : 0;
   const introE = ease(introT);
   const dive = seg(pS, 0.05, 0.22), tun = seg(pS, 0.22, 0.66), sunA = seg(pS, 0.66, 0.72);
-  const rev = seg(pS, 0.72, 0.79), key = seg(pS, 0.79, 0.92), pay = seg(pS, 0.92, 1);
-  const lockP = sm(0.795, 0.915, pS);
+  const rev = seg(pS, 0.72, 0.79);
   const act = pS < 0.22 ? 'hero' : pS < 0.72 ? 'tunnel' : 'vault';
-  const afterK = sm(0, 1, seg(pS, 0.94, 1) * 0.4 + extra * 0.75);   // the open vault bursts into a galaxy as the page carries on
+  const afterK = sm(0, 1, seg(pS, 0.94, 1) * 0.4 + extra * 0.75);
   const tunnelGate = seg(pS, 0.21, 0.25) * (1 - seg(pS, 0.68, 0.72));
+  const P = tune.profile;
 
   // --- pointer & tilt
-  interactPlane = act === 'vault' ? vaultCenter.z : 0;
+  interactPlane = pS < 0.12 ? 0 : camPos.z - 8;
   const recent = pointer.has && T - pointer.last < 1.4;
   pointer.strength += ((recent ? 1 : 0) - pointer.strength) * (1 - Math.exp(-dt * 5));
   if (pointer.has) pointerWorld(tmp), pointer.world.lerp(tmp, 1 - Math.exp(-dt * 12));
-  if (ripple.age >= 0) { ripple.age += dt; if (ripple.age > 2.6) ripple.age = -1; }
   tilt.x += (tilt.tx - tilt.x) * (1 - Math.exp(-dt * 4)); tilt.y += (tilt.ty - tilt.y) * (1 - Math.exp(-dt * 4));
   if (device.coarse) par.set(tilt.x, -tilt.y); else if (pointer.has) par.lerp(pointer.ndc, 1 - Math.exp(-dt * 3));
   const parK = REDUCED ? 0.3 : 1;
@@ -450,7 +422,7 @@ function update(dt) {
     if (sCam < 0) camPos.set(eye.x, eye.y, eye.z - sCam);
     const sT = sCam + 9;
     if (sT <= L) pathPos(eye, sT, camTgt); else camTgt.set(eye.x, eye.y, eye.z - sT);
-    bank = REDUCED ? 0 : pathBank(eye, Math.max(0, Math.min(L, sCam))) * seg(sCam, 2, 20);
+    bank = REDUCED || !tune.globe.bank ? 0 : 0.3 * pathBank(eye, Math.max(0, Math.min(L, sCam))) * seg(sCam, 2, 20);
     fov = 64 + (REDUCED ? 0 : Math.min(9, spd * 6));
     camPos.x += par.x * 0.22 * parK; camPos.y += par.y * 0.14 * parK;
   } else {
@@ -461,23 +433,8 @@ function update(dt) {
     tmp2.copy(tmp); tmp2.z -= 9;
     camTgt.copy(tmp2).lerp(VC.target, easeOut(rev));
     fov = lerp(64, layout.fov, ease(rev));
-    camPos.z -= 0.7 * ease(key) - 0.5 * ease(pay);
-    // once it's open: pull back to take in the galaxy, then circle it slowly as the page scrolls on
-    if (afterK > 0) {
-      const back = ease(afterK);
-      tmp.copy(camPos).sub(vaultCenter).multiplyScalar(1 + 0.6 * back);
-      tmp.applyAxisAngle(THREE.Object3D.DEFAULT_UP, (extra * 0.1 + Math.sin(T * 0.06) * 0.05) * back);
-      tmp.y += (1.4 + Math.sin(extra * 0.4) * 1.1) * back;
-      camPos.copy(vaultCenter).add(tmp);
-      tmp2.set(vaultCenter.x, vaultCenter.y + 0.4, vaultCenter.z);
-      camTgt.lerp(tmp2, back);
-    }
     const w = 0.4 * seg(pS, 0.75, 0.8) * parK;
     camPos.x += par.x * w; camPos.y += par.y * w * 0.6;
-    if (shockAge >= 0 && shockAge < 0.8 && !REDUCED) {
-      const a = 0.09 * Math.exp(-shockAge * 6);
-      camPos.x += (Math.random() - 0.5) * a; camPos.y += (Math.random() - 0.5) * a;
-    }
   }
   camera.position.copy(camPos);
   if (bank) { fwd.copy(camTgt).sub(camPos).normalize(); upV.applyAxisAngle(fwd, bank); }
@@ -494,75 +451,29 @@ function update(dt) {
   const pxScale = ((H * dpr) / (2 * Math.tan((fov * Math.PI) / 360))) * K_SIZE;
   const maxPt = Math.min(64 * dpr, maxPointHW);
 
-  // --- the stars that are you
-  const t1 = sm(0.165, 0.25, pS), t2 = sm(0.675, 0.77, pS);
-  const dil = sm(0.84, 1.0, dive);
+  // --- the seeds
+  if (!SHOT) windT += dt * P.windSpeed;
+  else windT = shot.t;
   if (mainSys) {
-    const U = mainSys.uniforms;
-    U.uTime.value = T; U.uIntro.value = introT; U.uIris.value = dil; U.uT1.value = t1; U.uT2.value = t2; U.uLock.value = lockP;
+    const U = mainSys.uniforms, G = tune.globe;
+    U.uTime.value = windT; U.uIntro.value = introT;
+    U.uDive.value = seg(pS, tune.segments.dive[0], tune.segments.dive[1]);
+    U.uTravel.value = eye.z - camPos.z;
     gateFade += ((ready ? 1 : 0) - gateFade) * (1 - Math.exp(-dt * 1.5));
     U.uOp.value = entered ? 1 : 0.42 * gateFade;
-    U.uAfter.value = afterK; U.uGalRot.value = T * 0.025 + extra * 0.3; U.uLockDim.value = 0.6;
-    U.uSpin.value = -T * 0.05;
-    const tg = tunnelGate;
-    U.uFogNear.value = lerp(40, 16, tg); U.uFogFar.value = lerp(85, 48, tg);
-    U.uScreenGlow.value = 0.85 + 0.15 * Math.sin(T * 7.1) * Math.sin(T * 2.3);
-    U.uSheen.value = -3 + ((T % 4) / 4) * 8;
+    U.uPxScale.value = pxScale / K_SIZE; U.uMaxPt.value = maxPt; U.uDpr.value = dpr;
+    U.uViewportPx.value.set(W * dpr, H * dpr);
+    U.uRadius.value = S0; U.uAperture.value = G.aperture; U.uGlobeBrightness.value = G.brightness;
+    U.uCoastMode.value = G.mode === 'coast' ? 1 : 0; U.uGlobeCompact.value = G.mode === 'current' ? 0 : 1; U.uGlobeCompactScale.value = G.compactScale;
+    U.uWindSize.value = P.seedSize; U.uLoops.value = P.playfulness; U.uFlutter.value = 0.35 + 0.65 * P.playfulness;
+    U.uBackgroundBrightness.value = tune.look.backgroundBrightness; U.uPointStrength.value = tune.look.pointStrength;
+    mainSys.kids.visible = tune.look.pointStrength > 0;
+    U.uFlightHalfExtent.value.set(Math.max(tune.flight.minHalfWidth, tune.flight.halfHeight * camera.aspect), tune.flight.halfHeight);
+    U.uCameraRoll.value = bank;
     U.uInteract.value = REDUCED ? 0.4 : 1;
-    if (lockP >= 0.999) orbit += dt * 0.07;
-    const yaw = 0.45 + Math.sin(T * 0.35) * 0.09 * (1 - lockP * 0.4) + orbit + extra * 0.35;
-    eul.set(-0.1, yaw, 0, 'YXZ');
-    U.uLockRot.value.setFromMatrix4(m4.makeRotationFromEuler(eul));
-    const dip = -0.16 * Math.sin(seg(lockP, 0.9, 1) * Math.PI) + Math.sin(T * 0.7) * 0.06;
-    U.uV.value.set(vaultCenter.x, vaultCenter.y + dip, vaultCenter.z);
-    U.uLockFlash.value = shockAge >= 0 ? 1.2 * Math.exp(-shockAge * 4) : 0;
     U.uMouse.value.set(pointer.world.x, pointer.world.y, pointer.world.z, pointer.strength);
-    U.uRipple.value.set(ripple.world.x, ripple.world.y, ripple.world.z, ripple.age);
-    U.uPxScale.value = pxScale; U.uMaxPt.value = maxPt;
-  }
-  if (laptopSys) {
-    const U = laptopSys.uniforms;
-    U.uTime.value = T; U.uIntro.value = introT; U.uOp.value = (entered ? 1 : 0) * (1 - seg(pS, 0.05, 0.13));
-    U.uPxScale.value = pxScale; U.uMaxPt.value = maxPt;
-    laptopSys.glowU.uOp.value = U.uOp.value * sm(0.6, 1, introT); laptopSys.glowU.uTime.value = T;
-    laptopSys.group.visible = SHOW_LAPTOP && pS < 0.15;
   }
   camera.updateMatrixWorld();
-  camR.setFromMatrixColumn(camera.matrixWorld, 0); camU.setFromMatrixColumn(camera.matrixWorld, 1); camF.setFromMatrixColumn(camera.matrixWorld, 2).negate();
-  const fillersOn = pS > 0.99 && afterK > 0.02;
-  if (gadgets) {
-    const heroK = (entered ? 1 : 0) * (1 - seg(pS, 0.05, 0.13));
-    GADGETS.forEach((k, i) => {
-      const g = gadgets[k], gu = g.u;
-      gu.uTime.value = T; gu.uIntro.value = introT; gu.uPxScale.value = pxScale; gu.uMaxPt.value = maxPt;
-      let scale;
-      if (fillersOn) {
-        const f = FILLERS.find((q) => q.o === k), s = fillerSpot(f, i, g.group.position);
-        scale = s.world / g.radius;
-        g.group.rotation.set(0.35 + Math.sin(T * 0.4 + i) * 0.15, T * 0.22 + i * 2 + extra * 0.6, Math.sin(T * 0.3 + i) * 0.1);
-        gu.uOp.value = afterK * s.fade * 0.9;
-      } else {
-        // floating around you on the landing screen: a slow bob and a lazy turn each
-        const c = layout.gadgets[k];
-        scale = c.world / g.radius;
-        g.group.position.copy(c.pos); g.group.position.y += Math.sin(T * 0.8 + i * 2.1) * 0.05 * c.world;
-        const sway = k === 'car' ? 0.06 : 0.35;   // the car holds still enough to park
-        g.group.rotation.set(c.rot.x + Math.sin(T * 0.5 + i) * 0.08, c.rot.y + Math.sin(T * 0.3 + i * 1.7) * sway, c.rot.z + Math.sin(T * 0.45 + i) * 0.05);
-        gu.uOp.value = heroK;
-      }
-      g.group.scale.setScalar(scale); gu.uObjScale.value = scale;
-      g.group.visible = gu.uOp.value > 0.001;
-      if (k === 'car') {
-        // drive in, charge at the Supercharger, drive off; the charger itself stays put
-        const run = carLoop(T), cu = g.charger.u;
-        g.points.position.z = run.z;
-        cu.uTime.value = T; cu.uIntro.value = introT; cu.uPxScale.value = pxScale; cu.uMaxPt.value = maxPt; cu.uObjScale.value = scale;
-        cu.uOp.value = gu.uOp.value; cu.uPlug.value = run.plug; cu.uCharge.value = run.charge;
-        gu.uWheel.value = run.wheel; gu.uCharge.value = run.charge; gu.uOp.value *= run.fade;
-        g.points.visible = gu.uOp.value > 0.001;
-      }
-    });
-  }
   if (occluder) {
     occluder.material.uniforms.uOp.value = 0.9 * sm(0.55, 1, introT) * (1 - seg(pS, 0.09, 0.17));
     occluder.visible = pS < 0.2;
@@ -591,13 +502,6 @@ function update(dt) {
   const onScreen = inFront && Math.abs(tmp.x) < 1.3 && Math.abs(tmp.y) < 1.3;
   post.u.uSun.value.set(tmp.x * 0.5 + 0.5, tmp.y * 0.5 + 0.5, onScreen ? sunOp * (pS < 0.22 ? 0.25 : 0.35 + 1.4 * heat) : 0);
 
-  // --- a ring of light kindles around Ottawa, then opens like an aperture
-  iris.points.position.set(eye.x, eye.y, eye.z + 0.06);
-  iris.u.uTime.value = T; iris.u.uDil.value = dil;
-  iris.u.uOp.value = sm(0.45, 0.78, dive) * (1 - sm(0.985, 1, dive)) * (pS < 0.222 ? 1 : 0);
-  iris.u.uPxScale.value = pxScale; iris.u.uMaxPt.value = maxPt;
-  iris.points.visible = iris.u.uOp.value > 0.001;
-
   // --- tunnel effects
   fx.glyphU.uTime.value = T;
   fx.glyphU.uOp.value = seg(pS, 0.215, 0.26) * (1 - seg(pS, 0.66, 0.71));
@@ -612,33 +516,17 @@ function update(dt) {
     tr.u.uAsm.value = sm(58, 30, ahead);
     tr.u.uOp.value = tunnelGate * sm(-8, 2, ahead) * (1 - sm(46, 62, ahead));
     tr.o.scale.setScalar(2.1); tr.u.uObjScale.value = 2.1;
-    if (fillersOn) {
-      const i = fx.trills.indexOf(tr), f = FILLERS.find((q) => q.o === 'trill' + i), s = fillerSpot(f, i, tr.o.position);
-      tr.o.scale.setScalar(s.world); tr.u.uObjScale.value = s.world;
-      tr.u.uBloom.value = 1; tr.u.uAsm.value = 1; tr.u.uOp.value = 0.8 * afterK * s.fade;
-    }
     tr.u.uPxScale.value = pxScale; tr.u.uMaxPt.value = maxPt;
     tr.o.visible = tr.u.uOp.value > 0.001;
   }
   fx.setScale(pxScale, maxPt);
-
-  // --- the vault ceremony
-  if (lockP > 0.2 && !cues.scrape) { cues.scrape = true; sound.scrape(); }
-  if (lockP > 0.68 && !cues.click) { cues.click = true; sound.click(); }
-  if (lockP > 0.93 && !cues.clunk) { cues.clunk = true; sound.clunk(); }
-  if (lockP > 0.97 && !cues.shock) { cues.shock = true; shockAge = 0; sound.granted(); }
-  if (lockP < 0.15) { cues.scrape = cues.click = cues.clunk = cues.shock = false; }
-  if (shockAge >= 0) { shockAge += dt; if (shockAge > 3) shockAge = -1; }
-  fx.shock.position.set(vaultCenter.x, vaultCenter.y + 0.3, vaultCenter.z + 1.6);
-  fx.shockU.uAge.value = shockAge >= 0 && shockAge < 1.6 ? shockAge : 0;
-  fx.shock.visible = shockAge >= 0 && shockAge < 1.6;
+  fx.shock.visible = false;
   if (pS > 0.69 && !cues.boom) { cues.boom = true; sound.boom(); }
   if (pS < 0.66) cues.boom = false;
 
   // --- the look of each act
   const warm = sm(0.3, 0.7, pS) * (1 - sm(0.72, 0.78, pS));
-  const violet = sm(0.74, 0.82, pS);
-  look.tint.set(1, 1, 1).lerp(tmp.set(1.18, 1.0, 0.82), warm).lerp(tmp.set(0.95, 0.85, 1.22), violet);
+  look.tint.set(1, 1, 1).lerp(tmp.set(1.18, 1.0, 0.82), warm);
   look.sky = pS < 0.72 ? lerp(1, 0.55, sm(0.2, 0.3, pS)) : lerp(0.55, 0.95, sm(0.72, 0.8, pS));
   look.stars = lerp(1, 0.6, tunnelGate);
   look.dust = 1;
@@ -652,13 +540,10 @@ function update(dt) {
   post.u.uZoom.value = REDUCED ? 0 : Math.min(0.09, spd * 0.055) * (act === 'vault' ? 0 : 1);
   post.u.uCA.value = REDUCED ? 0 : 0.0016 + Math.min(0.008, spd * 0.004);
   post.u.uWhite.value = white;
-  post.u.uFlash.value = shockAge >= 0 ? 0.35 * Math.exp(-shockAge * 5) : 0;
-  post.u.uGain.value.set(1, 1, 1).lerp(tmp.set(1.06, 1.0, 0.9), warm).lerp(tmp.set(1.0, 0.95, 1.08), violet);
-  post.u.uLift.value.set(0, 0.004, 0.012).lerp(tmp.set(0.012, 0.0, 0.026), violet);
-  if (shockAge >= 0 && shockAge < 1.4) {
-    tmp.copy(vaultCenter).project(camera);
-    post.u.uRip.value.set(tmp.x * 0.5 + 0.5, tmp.y * 0.5 + 0.5, shockAge * 0.75, (1 - shockAge / 1.4) * (REDUCED ? 0.3 : 1));
-  } else post.u.uRip.value.w = 0;
+  post.u.uFlash.value = 0;
+  post.u.uGain.value.set(1, 1, 1).lerp(tmp.set(1.06, 1.0, 0.9), warm);
+  post.u.uLift.value.set(0, 0.004, 0.012);
+  post.u.uRip.value.w = 0;
 
   // --- sound follows the flight
   if (entered && introT > 0.85 && !cues.chime) { cues.chime = true; sound.chime(); }
@@ -670,7 +555,7 @@ function update(dt) {
   heroEl.style.opacity = heroOp.toFixed(3);
   heroEl.style.transform = `translate3d(0,${(-50 * sm(0.02, 0.075, pS)).toFixed(1)}px,0)`;
   heroEl.style.visibility = heroOp > 0.001 ? 'visible' : 'hidden';
-  // the name is swept onto the screen as the stars settle into the globe, then the title follows
+  // the name is swept onto the screen as the seeds settle into the globe, then the title follows
   heroEl.style.setProperty('--type', sm(0.5, 0.92, introT).toFixed(3));
   heroEl.style.setProperty('--title', sm(0.78, 1, introT).toFixed(3));
   hintEl.style.opacity = (entered ? sm(0.9, 1, introT) * (1 - sm(0.0, 0.02, pS)) : 0).toFixed(3);
@@ -709,4 +594,4 @@ function seek(p, ex = 0) {
   scrollTo(0, y);
   return y;
 }
-window.__v8 = { get state() { return { pS, extra, T, tier: tier.name, entered, ready, W, H, dpr }; }, raw: rawProgress, seek, pause: (b) => { paused = !!b; }, setDprCap: (c) => { dprCap = c || 9; resize(true); }, camera, renderer, post, layout: () => layout, applyTier, TIERS, sound, fx, iris, solar, sky, scene };
+window.__v8 = { get state() { return { pS, extra, T, tier: tier.name, entered, ready, W, H, dpr }; }, raw: rawProgress, seek, pause: (b) => { paused = !!b; }, setDprCap: (c) => { dprCap = c || 9; resize(true); }, camera, renderer, post, layout: () => layout, applyTier, TIERS, sound, fx, solar, sky, scene, tune, seeds: () => mainSys };

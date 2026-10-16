@@ -19,7 +19,7 @@ const ROWS = [
     'Owen Lavender, spécialiste de l’investissement direct étranger chez Investir Ottawa. Diplômé en commerce international de l’École de commerce Sprott de l’Université Carleton, il travaille en anglais, en français et en allemand.',
     'Owen Lavender, Spezialist für ausländische Direktinvestitionen bei Invest Ottawa. Absolvent in International Business der Sprott School of Business der Carleton University; arbeitet auf Englisch, Französisch und Deutsch.'],
   ['Skip to content', 'Aller au contenu', 'Zum Inhalt springen'],
-  ['Gathering {n} stars', 'Rassemblement de {n} étoiles', '{n} Sterne werden gesammelt'],
+  ['Gathering {n} seeds', 'Rassemblement de {n} graines', '{n} Samen werden gesammelt'],
   ['Look closer.', 'Regardez de plus près.', 'Sehen Sie genauer hin.'],
   ['Scroll to explore', 'Faites défiler pour explorer', 'Zum Erkunden scrollen'],
   ['Swipe to explore', 'Balayez pour explorer', 'Zum Erkunden wischen'],
