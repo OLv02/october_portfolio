@@ -119,7 +119,7 @@ void compPose(out vec3 p, out float size, out float angle, out vec3 colour, out 
   float bendK = sin(gather * 3.14159265) * (1. - gather) * bend;
   p = mix(wind, target, gather) + uCamU * bendK * sin(h * 6.283 + uTime * .13) * .35 * S / 6.;
   colour = mix(windColour, structure * bright, gather);
-  alpha = mix(windAlpha, objAlpha, gather) * mix(uPres.x, uPres.y, half_);
+  alpha = mix(windAlpha, objAlpha, gather * gather) * mix(uPres.x, uPres.y, half_);   // seeds still in flight stay faint
   size = mix(windSize, objSize, gather);
   angle *= 1. - gather * turn;
 }
@@ -237,15 +237,17 @@ export function createCompanions(main, data, M) {
 }
 
 // The scroll side: which section each half is showing, how far its object has assembled, and where its stage is.
-// sections: [{ name, half, slot, head }]. A section's local progress runs 0 → its rest pose as its heading rises from
-// 95% to 40% of the viewport height: reversible, no timers. Reduced motion shows the rest pose without the gathering.
+// sections: [{ name, half, slot, head }]. A section's local progress runs 0 → its rest pose as its stage (the slot) rises
+// from a little below the screen to its upper half (stage top 145% → 75% of the viewport height, measured after the
+// section's rise-in transform), so the object is mostly formed as it comes up from the bottom of the screen, in the gap
+// before its section: reversible, no timers. Reduced motion shows the rest pose without the gathering.
 const _c = new THREE.Vector3();
 export function updateCompanions(sys, sections, { camera, W, H, reduced, tune }) {
   const u = sys.uniforms, vh = innerHeight;
   const state = sections.map((s) => {
-    const slot = s.slot.getBoundingClientRect(), head = s.head.getBoundingClientRect();
-    const ramp = Math.min(1, Math.max(0, (0.95 * vh - head.top) / (0.55 * vh)));
-    const on = slot.bottom > -0.05 * vh && slot.top < 1.05 * vh && slot.width > 0;
+    const slot = s.slot.getBoundingClientRect();
+    const ramp = Math.min(1, Math.max(0, (1.45 * vh - slot.top) / (0.7 * vh)));
+    const on = slot.bottom > -0.05 * vh && slot.top < 1.45 * vh && slot.width > 0;
     return { s, slot, ramp, on, weight: on ? (reduced ? 1 : ramp) : 0 };
   });
   camera.updateMatrixWorld();
