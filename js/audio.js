@@ -1,6 +1,7 @@
-// Sound, synthesized live with no audio files. On by default; it wakes on the visitor's first tap, click or key press.
-// Drone that shifts per act · wind that follows scroll speed · tunnel shimmer · sun approach + boom ·
-// portrait chime · tap blips · key scrape, tumbler clicks, the heavy clunk, and an "access granted" chord.
+// Sound, synthesized live with no audio files. Off until the visitor turns it on with the sound button.
+// A soft open pad · wind that follows how fast you travel · a light leaf rustle in the journey ·
+// a warm swell in the light at the end · a quiet two-note chime when the daisy opens.
+// Provisional: no final sound palette has been chosen.
 
 function silentWavURI() {
   // Tiny looping silent clip: playing it moves iOS audio onto the media channel,
@@ -45,73 +46,68 @@ export class Sound {
   build() {
     const c = this.ctx, t = c.currentTime;
     this.master = c.createGain(); this.master.gain.value = 0;
-    const comp = c.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 3;
+    const comp = c.createDynamicsCompressor(); comp.threshold.value = -18; comp.ratio.value = 3;
     this.master.connect(comp).connect(c.destination);
-    this.master.gain.setTargetAtTime(0.85, t, 1.2);
+    this.master.gain.setTargetAtTime(0.7, t, 1.5);
 
-    // reverb from a generated impulse
+    // a soft room from a generated impulse
     this.verb = c.createConvolver();
-    const len = c.sampleRate * 3.2, ir = c.createBuffer(2, len, c.sampleRate);
-    for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2); }
+    const len = c.sampleRate * 3.6, ir = c.createBuffer(2, len, c.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.6); }
     this.verb.buffer = ir;
-    this.verbIn = c.createGain(); this.verbIn.gain.value = 0.55;
+    this.verbIn = c.createGain(); this.verbIn.gain.value = 0.6;
     this.verbIn.connect(this.verb).connect(this.master);
 
-    // drone
-    this.droneF = c.createBiquadFilter(); this.droneF.type = 'lowpass'; this.droneF.frequency.value = 420; this.droneF.Q.value = 0.7;
-    this.droneG = c.createGain(); this.droneG.gain.value = 0.16;
-    this.droneF.connect(this.droneG); this.droneG.connect(this.master); this.droneG.connect(this.verbIn);
-    this.oscs = [[55, 'sine', 0.5], [55.4, 'sawtooth', 0.09], [82.41, 'triangle', 0.22], [110, 'sawtooth', 0.06], [164.8, 'sine', 0.08]].map(([f, type, g]) => {
-      const o = c.createOscillator(), gg = c.createGain(); o.type = type; o.frequency.value = f; gg.gain.value = g;
-      o.connect(gg).connect(this.droneF); o.start(); return o;
-    });
-    const lfo = c.createOscillator(), lfoG = c.createGain(); lfo.frequency.value = 0.07; lfoG.gain.value = 140;
-    lfo.connect(lfoG).connect(this.droneF.frequency); lfo.start();
-
-    // shimmer (tunnel)
-    this.shimG = c.createGain(); this.shimG.gain.value = 0;
-    this.shimG.connect(this.verbIn); this.shimG.connect(this.master);
-    [880, 1318.5, 1760, 2637].forEach((f, i) => {
-      const o = c.createOscillator(), g = c.createGain(), tr = c.createOscillator(), trg = c.createGain();
-      o.frequency.value = f; g.gain.value = 0.025 / (i + 1); tr.frequency.value = 0.3 + i * 0.17; trg.gain.value = 0.02 / (i + 1);
-      tr.connect(trg).connect(g.gain); o.connect(g).connect(this.shimG); o.start(); tr.start();
+    // open pad: a low fifth and a tenth, all sine, slowly breathing
+    this.padF = c.createBiquadFilter(); this.padF.type = 'lowpass'; this.padF.frequency.value = 600; this.padF.Q.value = 0.5;
+    this.padG = c.createGain(); this.padG.gain.value = 0.07;
+    this.padF.connect(this.padG); this.padG.connect(this.master); this.padG.connect(this.verbIn);
+    [[98, 0.5], [146.8, 0.32], [246.9, 0.12], [293.7, 0.08]].forEach(([f, g]) => {
+      const o = c.createOscillator(), gg = c.createGain(); o.type = 'sine'; o.frequency.value = f; gg.gain.value = g;
+      const lfo = c.createOscillator(), lg = c.createGain(); lfo.frequency.value = 0.05 + Math.random() * 0.06; lg.gain.value = g * 0.4;
+      lfo.connect(lg).connect(gg.gain); lfo.start();
+      o.connect(gg).connect(this.padF); o.start();
     });
 
-    // wind / whoosh
     const nb = c.createBuffer(1, c.sampleRate * 2, c.sampleRate), nd = nb.getChannelData(0);
     for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
     this.noiseBuf = nb;
+    // wind
     const ns = c.createBufferSource(); ns.buffer = nb; ns.loop = true;
-    this.windF = c.createBiquadFilter(); this.windF.type = 'bandpass'; this.windF.frequency.value = 400; this.windF.Q.value = 0.8;
-    this.windG = c.createGain(); this.windG.gain.value = 0.015;
+    this.windF = c.createBiquadFilter(); this.windF.type = 'bandpass'; this.windF.frequency.value = 350; this.windF.Q.value = 0.6;
+    this.windG = c.createGain(); this.windG.gain.value = 0.02;
+    const gust = c.createOscillator(), gustG = c.createGain(); gust.frequency.value = 0.09; gustG.gain.value = 120;
+    gust.connect(gustG).connect(this.windF.frequency); gust.start();
     ns.connect(this.windF).connect(this.windG).connect(this.master); ns.start();
-
-    // sun approach tone
-    this.sunO = c.createOscillator(); this.sunO.type = 'sawtooth'; this.sunO.frequency.value = 110;
-    this.sunF = c.createBiquadFilter(); this.sunF.type = 'bandpass'; this.sunF.Q.value = 6; this.sunF.frequency.value = 300;
-    this.sunG = c.createGain(); this.sunG.gain.value = 0;
-    this.sunO.connect(this.sunF).connect(this.sunG); this.sunG.connect(this.master); this.sunG.connect(this.verbIn); this.sunO.start();
+    // leaves: bright, quiet, flickering
+    const ls = c.createBufferSource(); ls.buffer = nb; ls.loop = true; ls.playbackRate.value = 0.83;
+    this.leafF = c.createBiquadFilter(); this.leafF.type = 'highpass'; this.leafF.frequency.value = 3200;
+    this.leafG = c.createGain(); this.leafG.gain.value = 0;
+    const flick = c.createOscillator(), flickG = c.createGain(); flick.frequency.value = 3.1; flickG.gain.value = 0.004;
+    flick.connect(flickG).connect(this.leafG.gain); flick.start();
+    ls.connect(this.leafF).connect(this.leafG); this.leafG.connect(this.master); this.leafG.connect(this.verbIn); ls.start();
+    // warm swell in the light
+    this.warmG = c.createGain(); this.warmG.gain.value = 0;
+    this.warmG.connect(this.master); this.warmG.connect(this.verbIn);
+    [196, 293.7, 392, 493.9].forEach((f, i) => { const o = c.createOscillator(), g = c.createGain(); o.type = i ? 'sine' : 'triangle'; o.frequency.value = f; g.gain.value = 0.05 / (i + 1); o.connect(g).connect(this.warmG); o.start(); });
   }
 
   // called every frame with the current state of the flight
   update(s) {
     if (!this.on || !this.ctx) return;
-    const t = this.ctx.currentTime, k = 0.12;
-    this.droneF.frequency.setTargetAtTime(s.act === 'tunnel' ? 700 + s.speed * 1400 : s.act === 'vault' ? 520 : 380, t, 0.4);
-    this.droneG.gain.setTargetAtTime(s.act === 'vault' ? 0.2 : 0.16, t, 0.6);
-    this.shimG.gain.setTargetAtTime(s.act === 'tunnel' ? 0.9 * s.tunnel : 0, t, 0.5);
-    this.windG.gain.setTargetAtTime(0.012 + Math.min(0.28, s.speed * 0.32), t, k);
-    this.windF.frequency.setTargetAtTime(280 + s.speed * 2600, t, k);
-    this.sunG.gain.setTargetAtTime(0.11 * s.sun, t, 0.2);
-    this.sunO.frequency.setTargetAtTime(90 + s.sun * 120, t, 0.3);
-    this.sunF.frequency.setTargetAtTime(220 + s.sun * 1600, t, 0.3);
+    const t = this.ctx.currentTime, k = 0.15;
+    this.padF.frequency.setTargetAtTime(s.act === 'tunnel' ? 520 + s.speed * 500 : 650, t, 0.6);
+    this.windG.gain.setTargetAtTime(0.015 + Math.min(0.18, s.speed * 0.2), t, k);
+    this.windF.frequency.setTargetAtTime(300 + s.speed * 1400, t, k);
+    this.leafG.gain.setTargetAtTime(s.act === 'tunnel' ? 0.006 * s.tunnel : 0, t, 0.6);
+    this.warmG.gain.setTargetAtTime(0.5 * s.sun, t, 0.5);
   }
 
   setMuted(m) {
     this.muted = m;
     if (!this.ctx) return;
     if (!m) this.wake();
-    this.master.gain.setTargetAtTime(m ? 0 : 0.85, this.ctx.currentTime, 0.25);
+    this.master.gain.setTargetAtTime(m ? 0 : 0.7, this.ctx.currentTime, 0.25);
   }
 
   _env(node, peak, a, d, when = 0) {
@@ -127,34 +123,7 @@ export class Sound {
       o.start(c.currentTime + when); o.stop(c.currentTime + when + dur + 0.1);
     });
   }
-  _noise(f, q, gain, dur, type = 'bandpass', when = 0, f2) {
-    const c = this.ctx, s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
-    s.buffer = this.noiseBuf; fl.type = type; fl.frequency.value = f; fl.Q.value = q;
-    if (f2) fl.frequency.exponentialRampToValueAtTime(f2, c.currentTime + when + dur);
-    s.connect(fl).connect(g); g.connect(this.master); g.connect(this.verbIn);
-    this._env(g, gain, 0.003, dur, when);
-    s.start(c.currentTime + when); s.stop(c.currentTime + when + dur + 0.05);
-  }
   _ok() { return this.on && this.ctx && !this.muted; }
 
-  chime() { if (this._ok()) { this._bell(659.25, 0.12, 3.2); this._bell(987.77, 0.06, 2.6, 0.12); } }
-  blip() { if (!this._ok()) return; const c = this.ctx, o = c.createOscillator(), g = c.createGain(); o.frequency.setValueAtTime(1200, c.currentTime); o.frequency.exponentialRampToValueAtTime(520, c.currentTime + 0.14); o.connect(g); g.connect(this.master); g.connect(this.verbIn); this._env(g, 0.05, 0.004, 0.18); o.start(); o.stop(c.currentTime + 0.25); }
-  scrape() { if (this._ok()) this._noise(2600, 1.5, 0.07, 0.38, 'bandpass', 0, 1100); }
-  click() { if (this._ok()) { this._noise(3300, 9, 0.28, 0.035); this._noise(2800, 9, 0.22, 0.03, 'bandpass', 0.09); } }
-  clunk() {
-    if (!this._ok()) return;
-    const c = this.ctx, o = c.createOscillator(), g = c.createGain();
-    o.frequency.setValueAtTime(130, c.currentTime); o.frequency.exponentialRampToValueAtTime(40, c.currentTime + 0.35);
-    o.connect(g); g.connect(this.master); this._env(g, 0.6, 0.004, 0.45); o.start(); o.stop(c.currentTime + 0.6);
-    this._noise(700, 0.8, 0.3, 0.14, 'lowpass');
-    [190, 507, 912, 1404].forEach((f, i) => { const oo = c.createOscillator(), gg = c.createGain(); oo.frequency.value = f; oo.connect(gg); gg.connect(this.master); gg.connect(this.verbIn); this._env(gg, 0.07 / (i + 1), 0.002, 1.4); oo.start(); oo.stop(c.currentTime + 1.6); });
-  }
-  granted() { if (this._ok()) [440, 554.37, 659.25, 880].forEach((f, i) => this._bell(f, 0.07, 2.2, 0.18 + i * 0.11)); }
-  boom() {
-    if (!this._ok()) return;
-    const c = this.ctx, o = c.createOscillator(), g = c.createGain();
-    o.frequency.setValueAtTime(70, c.currentTime); o.frequency.exponentialRampToValueAtTime(26, c.currentTime + 1.8);
-    o.connect(g); g.connect(this.master); g.connect(this.verbIn); this._env(g, 0.5, 0.02, 2.2); o.start(); o.stop(c.currentTime + 2.4);
-    this._noise(1800, 0.6, 0.22, 1.6, 'lowpass', 0, 120);
-  }
+  chime() { if (this._ok()) { this._bell(587.33, 0.06, 3.4); this._bell(880, 0.035, 2.8, 0.18); } }
 }
