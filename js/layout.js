@@ -1,6 +1,7 @@
 // Composition for any screen. Instead of fixed coordinates, every key element is given a
 // target rectangle on screen and the camera is solved to put it there.
 // Upright phones/tablets: globe up top, words below. Landscape: words left, globe right.
+// At the end of the flight the camera comes to rest in front of the plant, framed for the same screen.
 import * as THREE from './vendor/three.module.min.js';
 import { GLOBE } from './globe-meta.js';
 
@@ -16,7 +17,7 @@ function fit({ cx, cy, hx, hy, planeZ }, { nx, ny, nh, maxW }, fov, aspect) {
   return { pos, target: new THREE.Vector3(pos.x, pos.y, planeZ), dist: d };
 }
 
-export function computeLayout(w, h, S0, vault, measured = {}) {
+export function computeLayout(w, h, S0, vault, measured = {}, landing = {}) {
   const aspect = w / h;
   const t = sm(0.8, 1.3, aspect);                 // 0 = upright, 1 = landscape
   const phoneLand = aspect > 1.3 && h < 520;      // phone on its side: short and wide
@@ -43,40 +44,15 @@ export function computeLayout(w, h, S0, vault, measured = {}) {
   }
   const hero = fit(face, heroTarget, fov, aspect);
 
-  // laptop: lower-left of the face, where your gaze lands
-  const laptop = {
-    pos: new THREE.Vector3(lerp(-0.86, -1.02, t) * S0, lerp(-1.0, -1.12, t) * S0, 0.5),
-    rot: new THREE.Euler(0.32, 0.85, 0, 'YXZ'),
-    scale: lerp(1.0, 1.1, t),
-  };
+  // the landing: solved the way the light/landing study frames it. The plant (soil to flower = plantScale) takes 43% of
+  // the view's height, or 64% of its width on narrow screens; the soil line sits 16% below centre; on wide screens
+  // the plant stands right of centre, leaving the left for the words. The camera looks straight down -z at the plant.
+  const ls = landing.scale || 3.6;
+  const fieldH = Math.max(ls / 0.43, ls / (0.64 * aspect)), fieldW = fieldH * aspect;
+  const plantX = w > 650 ? fieldW * (landing.right ?? 0.18) : 0, groundY = -fieldH * 0.16;
+  const origin = new THREE.Vector3(vault.x - plantX, vault.y - groundY, vault.z);
+  const d = fieldH / (2 * tH);
+  const land = { pos: new THREE.Vector3(origin.x, origin.y, origin.z + d), target: origin.clone(), origin, dist: d, fieldW, fieldH, plantX, groundY, scale: ls };
 
-  // the little solar system on the landing screen, kept off your name
-  const solarDepth = -7;
-  const sd = hero.dist - solarDepth;
-  const sN = { nx: lerp(-0.64, -0.1, t), ny: lerp(0.83, 0.74, t) };
-  const solarHero = {
-    pos: new THREE.Vector3(hero.pos.x + sN.nx * sd * tH * aspect, hero.pos.y + sN.ny * sd * tH, solarDepth),
-    scale: (lerp(0.09, 0.16, t) * sd * tH * Math.min(1, aspect * 1.6)) / 4.05,
-  };
-
-  // the gadgets float in the empty corners around you: a screen spot (nx, ny), a depth, and a size as a share of
-  // the screen's half-height. Upright screens and landscape ones each get their own spots.
-  const spot = (u, l, rot) => {
-    const nx = lerp(u[0], l[0], t), ny = lerp(u[1], l[1], t), z = lerp(u[2], l[2], t), size = lerp(u[3], l[3], t);
-    const dz = hero.pos.z - z;
-    return { pos: new THREE.Vector3(hero.pos.x + nx * dz * tH * aspect, hero.pos.y + ny * dz * tH, z), world: size * dz * tH, rot };
-  };
-  // Upright: the car takes the wide spot above your head, the glasses and the Pocket 3 the two narrow strips beside it.
-  const gadgets = {
-    car: spot([0.0, 0.77, 0.4, 0.17], phoneLand ? [-0.56, 0.6, 0.4, 0.19] : [-0.6, 0.68, 0.4, 0.17], new THREE.Euler(0.2, -1.15, 0.0)),
-    drone: spot([0.6, 0.62, -1.0, 0.16], phoneLand ? [0.74, 0.58, -1.5, 0.22] : [0.74, 0.68, -1.5, 0.2], new THREE.Euler(0.85, -0.55, 0.1)),
-    glasses: spot([0.72, 0.27, 0.6, 0.09], phoneLand ? [0.16, 0.7, 0.2, 0.15] : [0.16, 0.74, 0.2, 0.14], new THREE.Euler(0.14, 0.62, 0.05)),
-    pocket: spot([-0.68, 0.48, 0.6, 0.15], phoneLand ? [-0.6, -0.6, 0.6, 0.28] : [-0.62, -0.62, 0.6, 0.3], new THREE.Euler(0.06, 0.22, -0.08)),
-  };
-
-  // the vault, centred for the key ceremony; once it opens the page scrolls over it
-  const box = { cx: vault.x, cy: vault.y + 0.5, hx: 1.9, hy: 2.7, planeZ: vault.z };
-  const vaultCentered = fit(box, { nx: 0, ny: lerp(0.04, -0.02, t), nh: lerp(0.44, 0.68, t), maxW: lerp(0.92, 0.86, t) }, fov, aspect);
-
-  return { aspect, t, fov, hero, laptop, solarHero, gadgets, vaultCentered, upright: t < 0.5 };
+  return { aspect, t, fov, hero, land, upright: t < 0.5 };
 }
