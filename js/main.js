@@ -129,7 +129,7 @@ function resize(force) {
   computeBeats();
 }
 addEventListener('resize', () => resize(false));
-// the web fonts arrive after first paint (boot.js loads them without blocking), so re-frame the globe when they land
+// the page uses system fonts now, but re-frame the globe if any font does load late
 if (document.fonts) { document.fonts.ready.then(() => resize(true)); document.fonts.addEventListener('loadingdone', () => resize(true)); }
 addEventListener('orientationchange', () => setTimeout(() => resize(true), 250));
 resize(true);
@@ -143,6 +143,19 @@ function applyTier(t) {
   $('q').textContent = t.name; if (Q.has('debug')) $('q').hidden = false;
 }
 const aq = new AdaptiveQuality(device, applyTier);
+
+// ?tune opens the hidden tuning panel (js/tune.js): live sliders for every setting in config.js
+if (Q.has('tune')) {
+  import('./tune.js').then(({ initTune }) => {
+    const recount = () => { if (mainSys) setSeedCount(mainSys, seedBudget()); };
+    initTune(tune, {
+      info: () => `${tune.profileName} profile · ${mainSys ? mainSys.count : 0} of ${tune.structure.capacity} seeds drawn (${tier.name} tier caps at ${TIER_SEEDS[tier.name]}) · ` +
+        `DPR ${dpr} · point cap ${Math.min(64 * dpr, maxPointHW)}px · linear output, colour management off`,
+      onCount: recount, onLayout: () => resize(true),
+    });
+    recount(); resize(true);
+  }).catch((e) => console.error(e));
+}
 
 // ---------- smooth scroll on desktop; native momentum on touch ----------
 let lenis = null;
@@ -263,9 +276,9 @@ function enter() {
   if (lenis) lenis.start();
   site.onEnter();
 }
-// Sound is on unless the visitor turned it off before. Browsers only let audio start from a tap, click or key press,
-// so the first one anywhere on the page wakes it.
-let soundWanted = !SHOT && !EMBED && (() => { try { return localStorage.getItem('v8.sound') !== '0'; } catch (e) { return true; } })();
+// Sound stays off until the visitor turns it on (and remembers that choice). Browsers only let audio start from a tap,
+// click or key press, so once it's wanted the first one anywhere on the page wakes it.
+let soundWanted = !SHOT && !EMBED && (() => { try { return localStorage.getItem('wb.sound') === '1'; } catch (e) { return false; } })();
 // The button shows what you'd actually hear: bars dancing once audio is playing, steady while it waits for that first
 // tap or key press, and flat when it's off.
 let soundUI = '';
@@ -283,7 +296,7 @@ const wakeSound = () => { if (soundWanted) sound.start(); };
 ['pointerdown', 'touchstart', 'touchend', 'keydown'].forEach((ev) => addEventListener(ev, wakeSound, { capture: true, passive: true }));
 $('sound').addEventListener('click', () => {
   soundWanted = !soundWanted;
-  try { localStorage.setItem('v8.sound', soundWanted ? '1' : '0'); } catch (e) { /* private mode */ }
+  try { localStorage.setItem('wb.sound', soundWanted ? '1' : '0'); } catch (e) { /* private mode */ }
   if (soundWanted) { sound.start(); sound.setMuted(false); } else sound.setMuted(true);
   setSoundUI(soundState());
 });
@@ -322,7 +335,7 @@ function pointerWorld(out) {
 }
 
 // ---------- DOM bits ----------
-const hintEl = $('hint');
+const hintEl = $('hint'), ottawaEl = $('ottawa');
 const hintText = () => { hintEl.firstElementChild.textContent = t(device.coarse ? 'Swipe to explore' : 'Scroll to explore'); };
 hintText();
 
@@ -350,7 +363,7 @@ document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
 let gateFade = SHOT ? 1 : 0, pS = 0, extra = 0, prevCam = new THREE.Vector3(), spd = 0;
 let windT = 12;   // the seeds' own clock: it runs at the selected wind speed, separately from the camera
 let motion = 0, prevTravel = null;   // how much the camera is travelling through the seeds right now, 0..1
-const cues = { chime: false, boom: false };
+const cues = { chime: false };
 const camPos = new THREE.Vector3(), camTgt = new THREE.Vector3(), tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
 const fwd = new THREE.Vector3(), upV = new THREE.Vector3(), par = new THREE.Vector2();
 const look = { tint: new THREE.Vector3(1, 1, 1), sky: 1, dust: 1 };
@@ -498,8 +511,6 @@ function update(dt) {
     occluder.visible = pS < 0.2;
   }
 
-  if (pS > 0.69 && !cues.boom) { cues.boom = true; sound.boom(); }
-  if (pS < 0.66) cues.boom = false;
 
   // --- the look of each act
   const warm = sm(0.3, 0.7, pS) * (1 - sm(0.72, 0.78, pS));
@@ -519,7 +530,9 @@ function update(dt) {
   post.u.uLift.value.set(0, 0, 0);
 
   // --- sound follows the flight
-  if (entered && introT > 0.85 && !cues.chime) { cues.chime = true; sound.chime(); }
+  // one quiet chime as the daisy opens; it re-arms only once you have scrolled well back, so scrubbing can't repeat it
+  if (growth > 0.92 && !cues.chime) { cues.chime = true; sound.chime(); }
+  if (growth < 0.4) cues.chime = false;
   sound.update({ act, speed: spd, tunnel: tunnelGate, sun: lightK });
   setSoundUI(soundState());
 
@@ -531,6 +544,14 @@ function update(dt) {
   // the name is swept onto the screen as the seeds settle into the globe, then the title follows
   heroEl.style.setProperty('--type', sm(0.5, 0.92, introT).toFixed(3));
   heroEl.style.setProperty('--title', sm(0.78, 1, introT).toFixed(3));
+  // Ottawa's name beside its mark on the globe, until the dive begins
+  const geoOp = heroOp * (1 - sm(0.0, 0.06, pS)) * (layout.upright && W < 360 ? 0 : 1);
+  ottawaEl.style.opacity = geoOp.toFixed(3);
+  ottawaEl.style.visibility = geoOp > 0.001 ? 'visible' : 'hidden';
+  if (geoOp > 0.001) {
+    tmp.copy(eye).project(camera);
+    ottawaEl.style.transform = `translate3d(${((tmp.x * 0.5 + 0.5) * W).toFixed(1)}px,${((0.5 - tmp.y * 0.5) * H).toFixed(1)}px,0)`;
+  }
   hintEl.style.opacity = (entered ? sm(0.9, 1, introT) * (1 - sm(0.0, 0.02, pS)) : 0).toFixed(3);
   document.documentElement.classList.toggle('reading', pS > 0.19);
 }
