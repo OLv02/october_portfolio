@@ -93,7 +93,7 @@ void seedPose(out vec3 p, out float size, out float angle, out vec3 colour, out 
   wind += N * sin(k * TAU) * .75 * caught + B * (1. - cos(k * TAU)) * .6 * caught;
   // Blown opening, one breath from the right, streamlined from dandelion research (Shields et al. 2025; Cummins et
   // al. 2018). Seeds facing the breath and on the rim let go first; the far (left) side holds on longest, so a clump
-  // around Ottawa lingers, leaning with the air, then follows on a gentler tail of the breath. Seeds are so light they
+  // around Ottawa lingers, then follows on a gentler tail of the breath. Seeds are so light they
   // move with the air: a fast, slightly upward burst that eases into a slow drift and widens into a swirling plume,
   // with a brief tumble before they settle tuft-up. Then each fades briefly into its wind slot. Strength = uAperture.
   vec2 u = g4.xy / R;
@@ -102,7 +102,8 @@ void seedPose(out vec3 p, out float size, out float angle, out vec3 colour, out 
   order = mix(order, 1.05, (1. - smoothstep(.08 * R, .28 * R, dist)) * uOttawaLast);
   float tb = .10 + .40 * order, breath = (.4 + .6 * uAperture) * (1. - .35 * order);
   float fb = clamp((uDive - tb) / .40, 0., 1.), burst = fb * (2. - fb), r2 = fract(h * 9.7) - .5, r3 = fract(h * 12.9) - .5;
-  float lean = smoothstep(.08, .16, uDive) * (1. - fb) * uOpening;
+  // only a seed that is about to let go leans downwind, briefly, so the globe as a whole never shifts off its disc
+  float lean = smoothstep(tb - .06, tb, uDive) * (1. - fb) * uOpening;
   vec3 blown = globe + vec3(-.10, .03, 0.) * lean * k4
              + vec3(-(burst * 9. + fb * 3.) * (.45 + 1.1 * fract(h * 5.1)),
                     burst * (1.4 + 2.4 * r2) + sin(fb * 6. + h * 20.) * .35 * fb,
