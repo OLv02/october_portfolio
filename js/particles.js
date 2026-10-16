@@ -48,7 +48,7 @@ attribute vec4 aScat, aTun, aCoast, aLock, aPlant;
 attribute vec2 aMisc;
 uniform float uTime, uIntro, uDive, uTravel, uOp, uPxScale, uMaxPt, uDpr;
 uniform float uRadius, uAperture, uCoastMode, uGlobeCompact, uGlobeCompactScale, uGlobeBrightness;
-uniform float uOpening, uOttawaLast, uQuiver;   // 1 = blown globe (approved), 0 = the seeds parting around Ottawa
+uniform float uOpening, uOttawaLast;   // 1 = blown globe (approved), 0 = the seeds parting around Ottawa
 uniform float uWindSize, uFlutter, uLoops, uBackgroundBrightness, uPointStrength, uCameraRoll, uInteract;
 uniform vec2 uFlightHalfExtent, uViewportPx;
 uniform vec4 uMouse;
@@ -91,34 +91,33 @@ void seedPose(out vec3 p, out float size, out float angle, out vec3 colour, out 
   // now and then a seed is caught by a gust and turns a loop that travels with it
   float cyc = fract(uTime * .027 + h * 7.3), k = clamp((cyc - .28) / .24, 0., 1.), caught = step(.82, fract(h * 23.71)) * uLoops;
   wind += N * sin(k * TAU) * .75 * caught + B * (1. - cos(k * TAU)) * .6 * caught;
-  // Blown opening: a breath from the right, but the left (downwind) edge lets go first and the release works back
-  // across the globe in loose clumps and two soft puffs, rim seeds a little early, Ottawa's seeds last. Each seed
-  // speeds up at its own rate, tumbles and rights itself, grows from its small globe point into a full seed, then
-  // fades briefly and reappears in its wind slot, so nothing travels back to the right. Breath strength = uAperture.
+  // Blown opening, one breath from the right, streamlined from dandelion research (Shields et al. 2025; Cummins et
+  // al. 2018). Seeds facing the breath and on the rim let go first; the far (left) side holds on longest, so a clump
+  // around Ottawa lingers, leaning with the air, then follows on a gentler tail of the breath. Seeds are so light they
+  // move with the air: a fast, slightly upward burst that eases into a slow drift and widens into a swirling plume,
+  // with a brief tumble before they settle tuft-up. Then each fades briefly into its wind slot. Strength = uAperture.
   vec2 u = g4.xy / R;
   float rim = 1. - sqrt(max(0., 1. - dot(u, u)));
-  float clump = .5 + .5 * sin(u.x * 7.1 + u.y * 5.3 + 1.7) * sin(u.y * 6.7 - u.x * 3.1);
-  float order = clamp(.62 * (u.x + 1.) * .5 + .18 * clump + .20 * fract(h * 17.3) - .10 * rim, 0., 1.);
-  order = mix(order, floor(order * 2.) * .5 + .25, .3);
+  float order = clamp(.50 * (1. - u.x) * .5 + .20 * (1. - rim) + .30 * fract(h * 17.3), 0., 1.);
   order = mix(order, 1.05, (1. - smoothstep(.08 * R, .28 * R, dist)) * uOttawaLast);
-  float tb = .12 + .30 * order, breath = .4 + .6 * uAperture;
-  float quiver = smoothstep(tb - .07, tb, uDive) * (1. - smoothstep(tb, tb + .04, uDive)) * uQuiver * uOpening;
-  float fb = clamp((uDive - tb) / .34, 0., 1.), db = fb * fb * (1.5 - .5 * fb), sp = .7 + .6 * fract(h * 5.1);
-  vec3 blown = globe + vec3(sin(uTime * 23. + uDive * 310. + h * 91.), cos(uTime * 19. + uDive * 270. + h * 57.), 0.) * .045 * quiver * k4;
-  blown += vec3(-db * 13. * sp * breath,
-                db * (fract(h * 9.7) - .3) * 4. * breath + sin(min(fb * 2., 1.) * 1.5708) * .6 * fract(h * 3.3) + sin(fb * 9. + h * 20.) * .25 * fb,
-                db * (fract(h * 12.9) - .5) * 8. * breath) * k4;
-  float swap = smoothstep(tb + .27, tb + .35, uDive);
+  float tb = .10 + .40 * order, breath = (.4 + .6 * uAperture) * (1. - .35 * order);
+  float fb = clamp((uDive - tb) / .40, 0., 1.), burst = fb * (2. - fb), r2 = fract(h * 9.7) - .5, r3 = fract(h * 12.9) - .5;
+  float lean = smoothstep(.08, .16, uDive) * (1. - fb) * uOpening;
+  vec3 blown = globe + vec3(-.10, .03, 0.) * lean * k4
+             + vec3(-(burst * 9. + fb * 3.) * (.45 + 1.1 * fract(h * 5.1)),
+                    burst * (1.4 + 2.4 * r2) + sin(fb * 6. + h * 20.) * .35 * fb,
+                    fb * r3 * 7. + cos(fb * 6. + h * 20.) * .35 * fb) * breath * k4;
+  float swap = smoothstep(tb + .32, tb + .40, uDive);
   p = mix(mix(globe, wind, morph), mix(blown, wind, step(.5, swap)), uOpening);
   morph = mix(morph, swap, uOpening);
-  float blowTumble = ((fract(h * 7.7) - .5) * 9.6 * fb * exp(-fb * 4.) + sin(fb * 7. + h * 30.) * .22 * fb + quiver * .25 * sin(uDive * 260. + h * 40.)) * uOpening;
+  float blowTumble = r2 * 6. * fb * exp(-fb * 5.) * uOpening;
 
   float lum = g4.w;
   colour = mix(mix(vec3(.49, .66, .44), vec3(1., .97, .83), lum) * uGlobeBrightness,
                mix(vec3(.68, .77, .61), vec3(1., .95, .79), h) * uBackgroundBrightness, morph);
   float large = step(.965, r);
   size = mix((.13 + .10 * h) * uWindSize * k4, mix(.10 + .18 * fract(r * 97.), .48 + .55 * h, large) * uWindSize, morph);
-  compact = uGlobeCompact * mix(1. - smoothstep(.20, .62, uDive), 1. - smoothstep(0., .5, fb), uOpening) * (1. - morph);
+  compact = uGlobeCompact * mix(1. - smoothstep(.20, .62, uDive), 1. - smoothstep(0., .4, fb), uOpening) * (1. - morph);
   size *= mix(1., uGlobeCompactScale, compact);
   angle = -.1 + sin(uTime * (.6 + h * .4) + h * TAU) * .20 * uFlutter + caught * sin(k * TAU) * .9 * morph - uCameraRoll + blowTumble;
   float ahead = slot - uTravel, edge = abs(across) / hx * 12.;
@@ -275,7 +274,7 @@ export function createMainSystem(data, N, eye, atlas) {
   const u = {
     uSeedAtlas: { value: atlas }, uTime: { value: 12 }, uIntro: { value: 0 }, uDive: { value: 0 }, uTravel: { value: 0 },
     uOp: { value: 0 }, uPxScale: { value: 100 }, uMaxPt: { value: 64 }, uDpr: { value: 1 },
-    uRadius: { value: 2.3 }, uAperture: { value: 1 }, uOpening: { value: 1 }, uOttawaLast: { value: 1 }, uQuiver: { value: 0 }, uCoastMode: { value: 1 }, uGlobeCompact: { value: 1 }, uGlobeCompactScale: { value: 0.38 }, uGlobeBrightness: { value: 1.6 },
+    uRadius: { value: 2.3 }, uAperture: { value: 1 }, uOpening: { value: 1 }, uOttawaLast: { value: 1 }, uCoastMode: { value: 1 }, uGlobeCompact: { value: 1 }, uGlobeCompactScale: { value: 0.38 }, uGlobeBrightness: { value: 1.6 },
     uWindSize: { value: 1 }, uFlutter: { value: 1 }, uLoops: { value: 1 }, uBackgroundBrightness: { value: 2.5 }, uPointStrength: { value: 0.3 },
     uCameraRoll: { value: 0 }, uInteract: { value: 1 },
     uFlightHalfExtent: { value: new THREE.Vector2(18, 18) }, uViewportPx: { value: new THREE.Vector2(1, 1) },

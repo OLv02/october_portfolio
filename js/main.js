@@ -500,7 +500,7 @@ function update(dt) {
     U.uOp.value = entered ? 1 : 0.42 * gateFade;
     U.uPxScale.value = pxScale / K_SIZE; U.uMaxPt.value = maxPt; U.uDpr.value = dpr;
     U.uViewportPx.value.set(W * dpr, H * dpr);
-    U.uOpening.value = G.opening === 'blow' ? 1 : 0; U.uOttawaLast.value = G.ottawaLast ? 1 : 0; U.uQuiver.value = G.quiver ? 1 : 0;
+    U.uOpening.value = G.opening === 'blow' ? 1 : 0; U.uOttawaLast.value = G.ottawaLast ? 1 : 0;
     U.uRadius.value = S0; U.uAperture.value = G.aperture; U.uGlobeBrightness.value = G.brightness * tune.render.globeGain;
     U.uCoastMode.value = G.mode === 'coast' ? 1 : 0; U.uGlobeCompact.value = G.mode === 'current' ? 0 : 1; U.uGlobeCompactScale.value = G.compactScale;
     U.uWindSize.value = P.seedSize; U.uLoops.value = P.playfulness; U.uFlutter.value = 0.35 + 0.65 * P.playfulness;

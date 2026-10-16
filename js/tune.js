@@ -53,7 +53,6 @@ export function initTune(tune, { info, onCount, onLayout, onPlant }) {
       <label class="tune-row tune-select">Daisy <select data-k="plant.variant"><option value="pair">approved pair</option><option value="original">six-leaf reference</option></select></label>
       <label class="tune-row tune-check"><input type="checkbox" data-k="plant.showRoots"> Roots visible</label>
       <label class="tune-row tune-select">Opening <select data-k="globe.opening"><option value="blow">blown away + slight dive</option><option value="part">part around Ottawa (original)</option></select></label>
-      <label class="tune-row tune-check"><input type="checkbox" data-k="globe.quiver"> Seeds quiver before letting go</label>
       <label class="tune-row tune-check"><input type="checkbox" data-k="globe.ottawaLast"> Ottawa's seeds let go last</label>
       <label class="tune-row tune-check"><input type="checkbox" data-k="globe.bank"> Bank into turns</label>
       <div class="tune-groups"></div>
@@ -89,7 +88,6 @@ export function initTune(tune, { info, onCount, onLayout, onPlant }) {
     root.querySelector('[data-k="plant.showRoots"]').checked = tune.plant.showRoots;
     root.querySelector('[data-k="globe.bank"]').checked = tune.globe.bank;
     root.querySelector('[data-k="globe.opening"]').value = tune.globe.opening;
-    root.querySelector('[data-k="globe.quiver"]').checked = tune.globe.quiver;
     root.querySelector('[data-k="globe.ottawaLast"]').checked = tune.globe.ottawaLast;
     root.querySelector('[data-a="remember"]').checked = remember;
     refreshInfo();
@@ -104,7 +102,6 @@ export function initTune(tune, { info, onCount, onLayout, onPlant }) {
   root.querySelector('[data-k="plant.showRoots"]').addEventListener('change', (e) => { tune.plant.showRoots = e.target.checked; persist(); });
   root.querySelector('[data-k="globe.bank"]').addEventListener('change', (e) => { tune.globe.bank = e.target.checked; persist(); });
   root.querySelector('[data-k="globe.opening"]').addEventListener('change', (e) => { tune.globe.opening = e.target.value; persist(); });
-  root.querySelector('[data-k="globe.quiver"]').addEventListener('change', (e) => { tune.globe.quiver = e.target.checked; persist(); });
   root.querySelector('[data-k="globe.ottawaLast"]').addEventListener('change', (e) => { tune.globe.ottawaLast = e.target.checked; persist(); });
   root.querySelector('[data-a="remember"]').addEventListener('change', (e) => { remember = e.target.checked; persist(); });
   root.querySelector('[data-a="reset"]').addEventListener('click', () => {

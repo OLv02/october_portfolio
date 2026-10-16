@@ -21,9 +21,8 @@ export const CONFIG = {
   globe: {
     mode: 'coast',              // selected: 'coast' (compact + coast), 'compact', or 'current'
     brightness: 1.6,
-    opening: 'blow',            // selected 16 Oct: 'blow' = blown away from the left edge while the camera dives slightly into Ottawa; 'part' = the seeds part around Ottawa (original)
+    opening: 'blow',            // selected 16 Oct: 'blow' = one breath from the right blows the globe away (right side and rim first, a left clump around Ottawa last) while the camera dives slightly into Ottawa; 'part' = the seeds part around Ottawa (original)
     blowDive: 0.35,             // selected: how far the camera dives into Ottawa during the blow (0 drift in late .. 1 full original dive)
-    quiver: false,              // selected: seeds tremble just before letting go
     ottawaLast: true,           // selected: Ottawa's seeds are the last to let go
     aperture: 1,                // selected 1.0: breath strength when blown; how far the seeds part around Ottawa when parting
     compactScale: 0.38,         // sprite size on the globe
