@@ -422,7 +422,10 @@ function update(dt) {
   let fov = layout.fov, bank = 0, sCam = -1e4;
   upV.set(0, 1, 0);
   if (pS < 0.22) {
-    const k = dive, dH = Hc.pos.distanceTo(eye);
+    // Blown opening: the globe blows away while the camera eases in toward Ottawa. blowDive 0 holds and then drifts
+    // in late; 1 is the full original dive. It ends exactly where the original dive ends, so the journey is unchanged.
+    const blow = tune.globe.opening === 'blow', bd = tune.globe.blowDive;
+    const k = blow ? Math.pow(sm(0.36 * (1 - bd), 1, dive), 1 + 0.6 * (1 - bd)) : dive, dH = Hc.pos.distanceTo(eye);
     const fovH = layout.fov, tH = Math.tan((fovH * Math.PI) / 360);
     let dist;
     if (k < 0.55) dist = dH * (1 - 0.62 * ease(k / 0.55));
@@ -431,21 +434,29 @@ function update(dt) {
     camPos.copy(eye).addScaledVector(tmp, dist);
     tmp2.set(eye.x, eye.y, eye.z + dist);
     camPos.lerp(tmp2, ease(seg(k, 0.25, 0.9)));
-    camTgt.copy(Hc.target).lerp(eye, ease(clamp01(k * 1.8)));
+    camTgt.copy(Hc.target).lerp(eye, ease(clamp01(k * (blow ? 1 + 0.8 * bd : 1.8))));
     if (REDUCED) fov = lerp(fovH, 64, ease(k));
     else if (k < 0.55) fov = Math.min(98, (2 * Math.atan((dH * tH) / dist) * 180) / Math.PI);
     else fov = lerp(Math.min(98, (2 * Math.atan(tH / 0.38) * 180) / Math.PI), 64, ease((k - 0.55) / 0.45));
+    if (blow && !REDUCED) fov = lerp(lerp(fovH, 64, ease(k)), fov, bd);   // a gentler widening than the full dive
     const w = 0.42 * (1 - dive) * parK;
     camPos.x += par.x * w; camPos.y += par.y * w * 0.6;
   } else if (pS < 0.72) {
-    sCam = pS < 0.66 ? -0.32 + tun * (L + 0.32) : L + sunA * 26;
+    // The opening's camera eases to a stop at the hand-off, so the journey starts from rest and picks up speed over its
+    // first 5% (velocity is continuous) instead of lurching to full speed; it still reaches the same point at 0.66.
+    const tA = 0.05, tunE = (tun < tA ? (tun * tun) / (2 * tA) : tun - tA / 2) / (1 - tA / 2);
+    sCam = pS < 0.66 ? -0.32 + tunE * (L + 0.32) : L + sunA * 26;
     if (sCam <= L) pathPos(eye, Math.max(0, sCam), camPos); else camPos.set(eye.x, eye.y, eye.z - sCam);
     if (sCam < 0) camPos.set(eye.x, eye.y, eye.z - sCam);
     const sT = sCam + 9;
     if (sT <= L) pathPos(eye, sT, camTgt); else camTgt.set(eye.x, eye.y, eye.z - sT);
+    // The opening ends looking straight ahead; the path's look-ahead starts about 8° off that. Ease from one to the
+    // other over the first stretch of the journey instead of snapping at the hand-off (it read as a skip in the scroll).
+    const join = ease(seg(sCam, -0.32, 12));
+    if (join < 1) { tmp2.set(camPos.x, camPos.y, camPos.z - 9); camTgt.lerpVectors(tmp2, camTgt, join); }
     bank = REDUCED || !tune.globe.bank ? 0 : 0.3 * pathBank(eye, Math.max(0, Math.min(L, sCam))) * seg(sCam, 2, 20);
     fov = 64 + (REDUCED ? 0 : Math.min(9, spd * 6));
-    camPos.x += par.x * 0.22 * parK; camPos.y += par.y * 0.14 * parK;
+    camPos.x += par.x * 0.22 * parK * join; camPos.y += par.y * 0.14 * parK * join;   // parallax eases in with the join too
   } else {
     // come out of the light and slow to rest in front of the plant
     const LF = layout.land;
@@ -496,6 +507,7 @@ function update(dt) {
     U.uOp.value = entered ? 1 : 0.42 * gateFade;
     U.uPxScale.value = pxScale / K_SIZE; U.uMaxPt.value = maxPt; U.uDpr.value = dpr;
     U.uViewportPx.value.set(W * dpr, H * dpr);
+    U.uOpening.value = G.opening === 'blow' ? 1 : 0; U.uOttawaLast.value = G.ottawaLast ? 1 : 0;
     U.uRadius.value = S0; U.uAperture.value = G.aperture; U.uGlobeBrightness.value = G.brightness * tune.render.globeGain;
     U.uCoastMode.value = G.mode === 'coast' ? 1 : 0; U.uGlobeCompact.value = G.mode === 'current' ? 0 : 1; U.uGlobeCompactScale.value = G.compactScale;
     U.uWindSize.value = P.seedSize; U.uLoops.value = P.playfulness; U.uFlutter.value = 0.35 + 0.65 * P.playfulness;
@@ -526,8 +538,16 @@ function update(dt) {
   ground.u.uOp.value = groundK;
   ground.mesh.visible = groundK > 0.001;
   if (occluder) {
-    occluder.material.uniforms.uOp.value = tune.render.occluder * sm(0.55, 1, introT) * (1 - seg(pS, 0.09, 0.17));
+    occluder.material.uniforms.uOp.value = tune.render.occluder * sm(0.55, 1, introT) * (1 - (tune.globe.opening === 'blow' ? seg(pS, 0.07, 0.15) : seg(pS, 0.09, 0.17)));
     occluder.visible = pS < 0.2;
+    // The disc sits at the globe's centre but the seeds cover the near half of the sphere, so any camera move (the dive,
+    // or a phone's tilt parallax) used to slide them apart. Facing the camera and sized to the sphere's true outline
+    // (radius R·d/√(d²−R²) at distance d) keeps the disc exactly behind the seeds from any viewpoint.
+    if (occluder.visible) {
+      occluder.lookAt(camera.position);
+      const d = camera.position.distanceTo(occluder.position);
+      occluder.scale.setScalar(d / Math.sqrt(Math.max(1e-6, d * d - S0 * S0)));
+    }
   }
 
 

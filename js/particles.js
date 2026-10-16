@@ -48,6 +48,7 @@ attribute vec4 aScat, aTun, aCoast, aLock, aPlant;
 attribute vec2 aMisc;
 uniform float uTime, uIntro, uDive, uTravel, uOp, uPxScale, uMaxPt, uDpr;
 uniform float uRadius, uAperture, uCoastMode, uGlobeCompact, uGlobeCompactScale, uGlobeBrightness;
+uniform float uOpening, uOttawaLast;   // 1 = blown globe (approved), 0 = the seeds parting around Ottawa
 uniform float uWindSize, uFlutter, uLoops, uBackgroundBrightness, uPointStrength, uCameraRoll, uInteract;
 uniform vec2 uFlightHalfExtent, uViewportPx;
 uniform vec4 uMouse;
@@ -63,11 +64,11 @@ const vec2 HUB = vec2(0., 222. / 512. - .5);
 void seedPose(out vec3 p, out float size, out float angle, out vec3 colour, out float alpha, out float compact, out float plantMix, out float kids){
   float h = aScat.w, r = aMisc.y, R = uRadius, k4 = R / 4.;
 
-  // ---- the globe, with the seeds parting around Ottawa on the way in
+  // ---- the globe; on the way in it is blown away (uOpening 1) or the seeds part around Ottawa (uOpening 0)
   vec4 g4 = mix(vec4(position, aMisc.x), aCoast, uCoastMode);
   vec3 globe = g4.xyz;
   vec2 delta = globe.xy - uEye.xy; float dist = length(delta);
-  float open = smoothstep(.24, .62, uDive) * uAperture;
+  float open = smoothstep(.24, .62, uDive) * uAperture * (1. - uOpening);
   vec2 away = dist > .001 ? delta / dist : vec2(cos(h * TAU), sin(h * TAU));
   float near = 1. - smoothstep(.10 * R, .85 * R, dist);
   globe.xy += away * open * near * R * .70;
@@ -90,19 +91,39 @@ void seedPose(out vec3 p, out float size, out float angle, out vec3 colour, out 
   // now and then a seed is caught by a gust and turns a loop that travels with it
   float cyc = fract(uTime * .027 + h * 7.3), k = clamp((cyc - .28) / .24, 0., 1.), caught = step(.82, fract(h * 23.71)) * uLoops;
   wind += N * sin(k * TAU) * .75 * caught + B * (1. - cos(k * TAU)) * .6 * caught;
-  p = mix(globe, wind, morph);
+  // Blown opening, one breath from the right, streamlined from dandelion research (Shields et al. 2025; Cummins et
+  // al. 2018). Seeds facing the breath and on the rim let go first; the far (left) side holds on longest, so a clump
+  // around Ottawa lingers, then follows on a gentler tail of the breath. Seeds are so light they
+  // move with the air: a fast, slightly upward burst that eases into a slow drift and widens into a swirling plume,
+  // with a brief tumble before they settle tuft-up. Then each fades briefly into its wind slot. Strength = uAperture.
+  vec2 u = g4.xy / R;
+  float rim = 1. - sqrt(max(0., 1. - dot(u, u)));
+  float order = clamp(.50 * (1. - u.x) * .5 + .20 * (1. - rim) + .30 * fract(h * 17.3), 0., 1.);
+  order = mix(order, 1.05, (1. - smoothstep(.08 * R, .28 * R, dist)) * uOttawaLast);
+  float tb = .10 + .40 * order, breath = (.4 + .6 * uAperture) * (1. - .35 * order);
+  float fb = clamp((uDive - tb) / .40, 0., 1.), burst = fb * (2. - fb), r2 = fract(h * 9.7) - .5, r3 = fract(h * 12.9) - .5;
+  // only a seed that is about to let go leans downwind, briefly, so the globe as a whole never shifts off its disc
+  float lean = smoothstep(tb - .06, tb, uDive) * (1. - fb) * uOpening;
+  vec3 blown = globe + vec3(-.10, .03, 0.) * lean * k4
+             + vec3(-(burst * 9. + fb * 3.) * (.45 + 1.1 * fract(h * 5.1)),
+                    burst * (1.4 + 2.4 * r2) + sin(fb * 6. + h * 20.) * .35 * fb,
+                    fb * r3 * 7. + cos(fb * 6. + h * 20.) * .35 * fb) * breath * k4;
+  float swap = smoothstep(tb + .32, tb + .40, uDive);
+  p = mix(mix(globe, wind, morph), mix(blown, wind, step(.5, swap)), uOpening);
+  morph = mix(morph, swap, uOpening);
+  float blowTumble = r2 * 6. * fb * exp(-fb * 5.) * uOpening;
 
   float lum = g4.w;
   colour = mix(mix(vec3(.49, .66, .44), vec3(1., .97, .83), lum) * uGlobeBrightness,
                mix(vec3(.68, .77, .61), vec3(1., .95, .79), h) * uBackgroundBrightness, morph);
   float large = step(.965, r);
   size = mix((.13 + .10 * h) * uWindSize * k4, mix(.10 + .18 * fract(r * 97.), .48 + .55 * h, large) * uWindSize, morph);
-  compact = uGlobeCompact * (1. - smoothstep(.20, .62, uDive)) * (1. - morph);
+  compact = uGlobeCompact * mix(1. - smoothstep(.20, .62, uDive), 1. - smoothstep(0., .4, fb), uOpening) * (1. - morph);
   size *= mix(1., uGlobeCompactScale, compact);
-  angle = -.1 + sin(uTime * (.6 + h * .4) + h * TAU) * .20 * uFlutter + caught * sin(k * TAU) * .9 * morph - uCameraRoll;
+  angle = -.1 + sin(uTime * (.6 + h * .4) + h * TAU) * .20 * uFlutter + caught * sin(k * TAU) * .9 * morph - uCameraRoll + blowTumble;
   float ahead = slot - uTravel, edge = abs(across) / hx * 12.;
   float fog = smoothstep(-23., -12., ahead) * (1. - smoothstep(45., 79., ahead)) * (1. - smoothstep(8., 12., edge));
-  alpha = mix(.12 + .57 * lum, (.22 + .48 * h) * fog, morph);
+  alpha = mix(.12 + .57 * lum, (.22 + .48 * h) * fog, morph) * mix(1., abs(2. * swap - 1.), uOpening);
   plantMix = 0.;
   kids = 1. - morph;
 
@@ -254,7 +275,7 @@ export function createMainSystem(data, N, eye, atlas) {
   const u = {
     uSeedAtlas: { value: atlas }, uTime: { value: 12 }, uIntro: { value: 0 }, uDive: { value: 0 }, uTravel: { value: 0 },
     uOp: { value: 0 }, uPxScale: { value: 100 }, uMaxPt: { value: 64 }, uDpr: { value: 1 },
-    uRadius: { value: 2.3 }, uAperture: { value: 1 }, uCoastMode: { value: 1 }, uGlobeCompact: { value: 1 }, uGlobeCompactScale: { value: 0.38 }, uGlobeBrightness: { value: 1.6 },
+    uRadius: { value: 2.3 }, uAperture: { value: 1 }, uOpening: { value: 1 }, uOttawaLast: { value: 1 }, uCoastMode: { value: 1 }, uGlobeCompact: { value: 1 }, uGlobeCompactScale: { value: 0.38 }, uGlobeBrightness: { value: 1.6 },
     uWindSize: { value: 1 }, uFlutter: { value: 1 }, uLoops: { value: 1 }, uBackgroundBrightness: { value: 2.5 }, uPointStrength: { value: 0.3 },
     uCameraRoll: { value: 0 }, uInteract: { value: 1 },
     uFlightHalfExtent: { value: new THREE.Vector2(18, 18) }, uViewportPx: { value: new THREE.Vector2(1, 1) },
@@ -286,7 +307,8 @@ export function createOccluder(texture, meta, S0, colour) {
   const sc = meta.scale * S0;
   const x0 = -meta.cx * sc, x1 = (meta.width - meta.cx) * sc;
   const y1 = meta.cy * sc, y0 = -(meta.height - meta.cy) * sc;
-  const geo = new THREE.PlaneGeometry(x1 - x0, y1 - y0);
+  // centred on the globe so main.js can turn it to face the camera (see the occluder update there)
+  const geo = new THREE.PlaneGeometry(x1 - x0, y1 - y0).translate((x0 + x1) / 2, (y0 + y1) / 2, 0);
   const mat = new THREE.ShaderMaterial({
     uniforms: { tMask: { value: texture }, uOp: { value: 0 }, uColour: { value: new THREE.Vector3(...colour) } },
     vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`,
@@ -296,7 +318,7 @@ export function createOccluder(texture, meta, S0, colour) {
   });
   const mesh = new THREE.Mesh(geo, mat);
   const z = meta.globe ? -Math.sqrt(Math.max(0, meta.globe ** 2 - meta.eye[0] ** 2 - meta.eye[1] ** 2)) * S0 : -0.55;
-  mesh.position.set((x0 + x1) / 2, (y0 + y1) / 2, z);
+  mesh.position.set(0, 0, z);
   mesh.renderOrder = 5;
   mesh.frustumCulled = false;
   return mesh;
