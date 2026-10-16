@@ -533,6 +533,14 @@ function update(dt) {
   if (occluder) {
     occluder.material.uniforms.uOp.value = tune.render.occluder * sm(0.55, 1, introT) * (1 - (tune.globe.opening === 'blow' ? seg(pS, 0.07, 0.15) : seg(pS, 0.09, 0.17)));
     occluder.visible = pS < 0.2;
+    // The disc sits at the globe's centre but the seeds cover the near half of the sphere, so any camera move (the dive,
+    // or a phone's tilt parallax) used to slide them apart. Facing the camera and sized to the sphere's true outline
+    // (radius R·d/√(d²−R²) at distance d) keeps the disc exactly behind the seeds from any viewpoint.
+    if (occluder.visible) {
+      occluder.lookAt(camera.position);
+      const d = camera.position.distanceTo(occluder.position);
+      occluder.scale.setScalar(d / Math.sqrt(Math.max(1e-6, d * d - S0 * S0)));
+    }
   }
 
 

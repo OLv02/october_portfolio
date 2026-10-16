@@ -306,7 +306,8 @@ export function createOccluder(texture, meta, S0, colour) {
   const sc = meta.scale * S0;
   const x0 = -meta.cx * sc, x1 = (meta.width - meta.cx) * sc;
   const y1 = meta.cy * sc, y0 = -(meta.height - meta.cy) * sc;
-  const geo = new THREE.PlaneGeometry(x1 - x0, y1 - y0);
+  // centred on the globe so main.js can turn it to face the camera (see the occluder update there)
+  const geo = new THREE.PlaneGeometry(x1 - x0, y1 - y0).translate((x0 + x1) / 2, (y0 + y1) / 2, 0);
   const mat = new THREE.ShaderMaterial({
     uniforms: { tMask: { value: texture }, uOp: { value: 0 }, uColour: { value: new THREE.Vector3(...colour) } },
     vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`,
@@ -316,7 +317,7 @@ export function createOccluder(texture, meta, S0, colour) {
   });
   const mesh = new THREE.Mesh(geo, mat);
   const z = meta.globe ? -Math.sqrt(Math.max(0, meta.globe ** 2 - meta.eye[0] ** 2 - meta.eye[1] ** 2)) * S0 : -0.55;
-  mesh.position.set((x0 + x1) / 2, (y0 + y1) / 2, z);
+  mesh.position.set(0, 0, z);
   mesh.renderOrder = 5;
   mesh.frustumCulled = false;
   return mesh;
