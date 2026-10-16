@@ -266,10 +266,9 @@ let ready = false;
     const tex = new THREE.CanvasTexture(pix.canvas); tex.flipY = false; tex.generateMipmaps = false; tex.minFilter = THREE.LinearFilter;
     occluder = createOccluder(tex, GLOBE, S0, THEME.forest.map((c) => (-Math.log(1 - c) / post.u.uExposure.value) * 0.6));
     scene.add(mainSys.points, mainSys.kids, occluder);
-    // the section companions borrow the tail of the same seed universe (identities the main system doesn't draw)
-    companions = createCompanions(mainSys, data.main, tune.companions.perHalf);
-    companions.uniforms.uTitleBrightness.value = tune.look.titleBrightness;
-    scene.add(companions.points, companions.kids, companions.light);
+    // the section companions are built from these same seeds (two thirds of them are builders; see js/companions.js)
+    companions = createCompanions(mainSys);
+    scene.add(companions.light);
     if (Q.has('tune')) rebuildPlant();   // a remembered ?tune variant may have arrived after the worker started
     applyTier(tier);
     progress(1);
@@ -499,7 +498,8 @@ function update(dt) {
   camera.lookAt(camTgt);
   camera.fov = fov;
   camera.updateProjectionMatrix();
-  if (companions && entered) updateCompanions(companions, COMPANION_SECTIONS, { camera, W, H, reduced: REDUCED, tune });
+  // builders only build during the journey; by the light at its end every one is back in the wind
+  if (companions && entered) updateCompanions(companions, COMPANION_SECTIONS, { camera, W, H, tune, on: 1 - seg(pS, 0.62, 0.66) });
 
   const camSpeed = dt > 0 ? camPos.distanceTo(prevCam) / dt : 0;
   prevCam.copy(camPos);

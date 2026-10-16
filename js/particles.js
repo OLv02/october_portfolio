@@ -3,6 +3,7 @@
 // that share its exact pose. Additive blending, no depth test, raw (unmanaged) colour, like the rest of the scene.
 import * as THREE from './vendor/three.module.min.js';
 import { PATH_GLSL, TUN } from './path.js';
+import { COMPANION_GLSL } from './companion-shader.js';
 
 // ---------- the seed atlas: 37 curved filaments with barbs, a stalk and a seed body ----------
 export const POINTS_PER_SEED = 4;
@@ -82,6 +83,7 @@ const float TAU = 6.2831853;
 const vec2 HUB = vec2(0., 222. / 512. - .5);
 
 ${WIND_GLSL}
+${COMPANION_GLSL}
 
 // p, sprite size (world), angle, colour, alpha; compact = globe sprite mode; plantMix = drawn as a round plant point;
 // kids = how visible the attached filament points are
@@ -195,6 +197,9 @@ void seedPose(out vec3 p, out float size, out float angle, out vec3 colour, out 
     }
   }
 
+  // ---- the section companions: builder seeds leave the wind for their section's object (js/companion-shader.js)
+  companionPose(p, size, angle, colour, alpha, plantMix, h);
+
   // ---- a breath of air under the pointer
   if (uMouse.w > .001 && uInteract > .001) {
     vec2 dm = p.xy - uMouse.xy; float dd = length(dm) + 1e-4;
@@ -288,6 +293,12 @@ export function createMainSystem(data, N, eye, atlas) {
   const uv = new Float32Array(total * K * 2), anchors = atlas.userData.anchors;
   for (let i = 0; i < total; i++) for (let j = 0; j < K; j++) uv.set(anchors[j], (i * K + j) * 2);
   kg.setAttribute('aDotUV', new THREE.BufferAttribute(uv, 2));
+  // section companion builders: every third seed is half A, the next every third half B (the landing seeds never build)
+  const comp = Float32Array.from({ length: total }, (_, i) => (i % 3 === 1 ? 1 : i % 3 === 2 ? 2 : 0));
+  for (const r of [0, 7, 19]) if (r < total) comp[r] = 0;
+  g.setAttribute('aComp', new THREE.BufferAttribute(comp, 1));
+  kg.setAttribute('aComp', new THREE.BufferAttribute(Float32Array.from({ length: total * K }, (_, i) => comp[Math.floor(i / K)]), 1));
+  for (const geo of [g, kg]) for (const name of ['aObjLock', 'aObjTun']) geo.setAttribute(name, new THREE.BufferAttribute(new Float32Array(geo.attributes.aComp.count * 4), 4));
 
   const u = {
     uSeedAtlas: { value: atlas }, uTime: { value: 12 }, uIntro: { value: 0 }, uDive: { value: 0 }, uTravel: { value: 0 },
@@ -301,6 +312,8 @@ export function createMainSystem(data, N, eye, atlas) {
     uPlantScale: { value: 3.6 }, uPlantBrightness: { value: 1.2 }, uSway: { value: 1.1 }, uShowRoots: { value: 1 }, uLeafGain: { value: 1 / 3 }, uWarm: { value: 0 }, uLandingSpread: { value: 1 },
     uLandO: { value: new THREE.Vector3() }, uFromBase: { value: new THREE.Vector3() },
     uCamR: { value: new THREE.Vector3(1, 0, 0) }, uCamU: { value: new THREE.Vector3(0, 1, 0) }, uCamF: { value: new THREE.Vector3(0, 0, -1) },
+    uKind: { value: new THREE.Vector2(0, 1) }, uProg: { value: new THREE.Vector2() }, uScale: { value: new THREE.Vector2(1, 1) }, uBright: { value: new THREE.Vector2(1, 1) },
+    uLightK: { value: new THREE.Vector2() }, uRest: { value: new THREE.Vector2(1, 1) }, uC0: { value: new THREE.Vector3() }, uC1: { value: new THREE.Vector3() }, uCompOn: { value: 0 }, uCompDot: { value: 1 },
     uEye: { value: eye.clone() }, uLt: { value: TUN.L },
   };
   const seeds = new THREE.Points(g, additive(SEED_VERT, SEED_FRAG, u));

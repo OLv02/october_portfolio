@@ -57,10 +57,9 @@ export const CONFIG = {
     occluder: 0.55,             // how strongly the soft disc behind the globe hides the canopy light
     companionGain: 1.3,         // extra gain on the formed companions, for the same tone curve (their own brightness stays as approved)
   },
-  // The section companions (approved objects and settings from the through-fern package). Each is built from a shared
-  // companion population of perHalf × 2 parents; size scales the object on its stage (.companion-slot in style.css).
+  // The section companions (approved objects and settings from the through-fern package), built from the background
+  // seeds themselves; size scales the object on its stage (.companion-slot in style.css).
   companions: {
-    perHalf: 3600,              // parents per half of the shared population, as dense as the proof pages (3,600)
     bridge: { brightness: 1.2, size: 1 },                 // Work: Little bridge, 60% span, four posts a side, no heart
     seedling: { brightness: 0.9, size: 0.85, light: 1.8 },// Highlights: spotlit seedling, rest pose .82
     compass: { brightness: 1.2, size: 0.7 },              // Leadership: tabletop compass
