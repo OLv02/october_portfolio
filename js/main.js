@@ -422,7 +422,10 @@ function update(dt) {
   let fov = layout.fov, bank = 0, sCam = -1e4;
   upV.set(0, 1, 0);
   if (pS < 0.22) {
-    const k = dive, dH = Hc.pos.distanceTo(eye);
+    // Blown opening: the globe blows away while the camera eases in toward Ottawa. blowDive 0 holds and then drifts
+    // in late; 1 is the full original dive. It ends exactly where the original dive ends, so the journey is unchanged.
+    const blow = tune.globe.opening === 'blow', bd = tune.globe.blowDive;
+    const k = blow ? Math.pow(sm(0.36 * (1 - bd), 1, dive), 1 + 0.6 * (1 - bd)) : dive, dH = Hc.pos.distanceTo(eye);
     const fovH = layout.fov, tH = Math.tan((fovH * Math.PI) / 360);
     let dist;
     if (k < 0.55) dist = dH * (1 - 0.62 * ease(k / 0.55));
@@ -431,10 +434,11 @@ function update(dt) {
     camPos.copy(eye).addScaledVector(tmp, dist);
     tmp2.set(eye.x, eye.y, eye.z + dist);
     camPos.lerp(tmp2, ease(seg(k, 0.25, 0.9)));
-    camTgt.copy(Hc.target).lerp(eye, ease(clamp01(k * 1.8)));
+    camTgt.copy(Hc.target).lerp(eye, ease(clamp01(k * (blow ? 1 + 0.8 * bd : 1.8))));
     if (REDUCED) fov = lerp(fovH, 64, ease(k));
     else if (k < 0.55) fov = Math.min(98, (2 * Math.atan((dH * tH) / dist) * 180) / Math.PI);
     else fov = lerp(Math.min(98, (2 * Math.atan(tH / 0.38) * 180) / Math.PI), 64, ease((k - 0.55) / 0.45));
+    if (blow && !REDUCED) fov = lerp(lerp(fovH, 64, ease(k)), fov, bd);   // a gentler widening than the full dive
     const w = 0.42 * (1 - dive) * parK;
     camPos.x += par.x * w; camPos.y += par.y * w * 0.6;
   } else if (pS < 0.72) {
@@ -496,6 +500,7 @@ function update(dt) {
     U.uOp.value = entered ? 1 : 0.42 * gateFade;
     U.uPxScale.value = pxScale / K_SIZE; U.uMaxPt.value = maxPt; U.uDpr.value = dpr;
     U.uViewportPx.value.set(W * dpr, H * dpr);
+    U.uOpening.value = G.opening === 'blow' ? 1 : 0; U.uOttawaLast.value = G.ottawaLast ? 1 : 0; U.uQuiver.value = G.quiver ? 1 : 0;
     U.uRadius.value = S0; U.uAperture.value = G.aperture; U.uGlobeBrightness.value = G.brightness * tune.render.globeGain;
     U.uCoastMode.value = G.mode === 'coast' ? 1 : 0; U.uGlobeCompact.value = G.mode === 'current' ? 0 : 1; U.uGlobeCompactScale.value = G.compactScale;
     U.uWindSize.value = P.seedSize; U.uLoops.value = P.playfulness; U.uFlutter.value = 0.35 + 0.65 * P.playfulness;
@@ -526,7 +531,7 @@ function update(dt) {
   ground.u.uOp.value = groundK;
   ground.mesh.visible = groundK > 0.001;
   if (occluder) {
-    occluder.material.uniforms.uOp.value = tune.render.occluder * sm(0.55, 1, introT) * (1 - seg(pS, 0.09, 0.17));
+    occluder.material.uniforms.uOp.value = tune.render.occluder * sm(0.55, 1, introT) * (1 - (tune.globe.opening === 'blow' ? seg(pS, 0.07, 0.15) : seg(pS, 0.09, 0.17)));
     occluder.visible = pS < 0.2;
   }
 

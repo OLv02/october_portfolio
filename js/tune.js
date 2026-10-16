@@ -11,7 +11,7 @@ const PROFILE_KEYS = ['windSpeed', 'seeds', 'seedSize', 'playfulness'];
 const LABELS = {
   windSpeed: 'Wind speed', seeds: 'Seeds', seedSize: 'Seed size', playfulness: 'Playfulness',
   'look.backgroundBrightness': 'Wind seed brightness', 'look.pointStrength': 'Attached points',
-  'globe.brightness': 'Globe brightness', 'globe.aperture': 'Opening at Ottawa', 'globe.compactScale': 'Globe sprite scale',
+  'globe.brightness': 'Globe brightness', 'globe.aperture': 'Breath / opening strength', 'globe.blowDive': 'Dive into Ottawa (blown)', 'globe.compactScale': 'Globe sprite scale',
   'plant.brightness': 'Plant brightness', 'plant.sway': 'Plant sway', 'plant.scale': 'Plant size',
   'landing.light': 'Warm light', 'landing.spread': 'Landing spread', 'landing.plantRight': 'Plant offset (wide)',
   'render.globeGain': 'Globe gain (tone curve)', 'render.occluder': 'Globe backing',
@@ -20,7 +20,7 @@ const LABELS = {
 const GROUPS = [
   ['Seeds · profile', PROFILE_KEYS],
   ['Look', ['look.backgroundBrightness', 'look.pointStrength']],
-  ['Globe', ['globe.brightness', 'globe.aperture', 'globe.compactScale', 'render.globeGain', 'render.occluder']],
+  ['Globe', ['globe.brightness', 'globe.aperture', 'globe.blowDive', 'globe.compactScale', 'render.globeGain', 'render.occluder']],
   ['Journey', ['flight.halfHeight', 'flight.minHalfWidth', 'flight.motionEase']],
   ['Light & landing', ['landing.light', 'landing.spread', 'landing.plantRight']],
   ['Daisy', ['plant.brightness', 'plant.sway', 'plant.scale']],
@@ -52,6 +52,9 @@ export function initTune(tune, { info, onCount, onLayout, onPlant }) {
       <label class="tune-row tune-select">Globe <select data-k="globe.mode"><option value="coast">compact + coast</option><option value="compact">compact</option><option value="current">current</option></select></label>
       <label class="tune-row tune-select">Daisy <select data-k="plant.variant"><option value="pair">approved pair</option><option value="original">six-leaf reference</option></select></label>
       <label class="tune-row tune-check"><input type="checkbox" data-k="plant.showRoots"> Roots visible</label>
+      <label class="tune-row tune-select">Opening <select data-k="globe.opening"><option value="blow">blown away + slight dive</option><option value="part">part around Ottawa (original)</option></select></label>
+      <label class="tune-row tune-check"><input type="checkbox" data-k="globe.quiver"> Seeds quiver before letting go</label>
+      <label class="tune-row tune-check"><input type="checkbox" data-k="globe.ottawaLast"> Ottawa's seeds let go last</label>
       <label class="tune-row tune-check"><input type="checkbox" data-k="globe.bank"> Bank into turns</label>
       <div class="tune-groups"></div>
       <div class="tune-actions"><button type="button" data-a="reset">Reset</button><button type="button" data-a="copy">Copy JSON</button><button type="button" data-a="export">Export</button></div>
@@ -85,6 +88,9 @@ export function initTune(tune, { info, onCount, onLayout, onPlant }) {
     root.querySelector('[data-k="plant.variant"]').value = tune.plant.variant;
     root.querySelector('[data-k="plant.showRoots"]').checked = tune.plant.showRoots;
     root.querySelector('[data-k="globe.bank"]').checked = tune.globe.bank;
+    root.querySelector('[data-k="globe.opening"]').value = tune.globe.opening;
+    root.querySelector('[data-k="globe.quiver"]').checked = tune.globe.quiver;
+    root.querySelector('[data-k="globe.ottawaLast"]').checked = tune.globe.ottawaLast;
     root.querySelector('[data-a="remember"]').checked = remember;
     refreshInfo();
   };
@@ -97,6 +103,9 @@ export function initTune(tune, { info, onCount, onLayout, onPlant }) {
   root.querySelector('[data-k="plant.variant"]').addEventListener('change', (e) => { tune.plant.variant = e.target.value; onPlant(); persist(); });
   root.querySelector('[data-k="plant.showRoots"]').addEventListener('change', (e) => { tune.plant.showRoots = e.target.checked; persist(); });
   root.querySelector('[data-k="globe.bank"]').addEventListener('change', (e) => { tune.globe.bank = e.target.checked; persist(); });
+  root.querySelector('[data-k="globe.opening"]').addEventListener('change', (e) => { tune.globe.opening = e.target.value; persist(); });
+  root.querySelector('[data-k="globe.quiver"]').addEventListener('change', (e) => { tune.globe.quiver = e.target.checked; persist(); });
+  root.querySelector('[data-k="globe.ottawaLast"]').addEventListener('change', (e) => { tune.globe.ottawaLast = e.target.checked; persist(); });
   root.querySelector('[data-a="remember"]').addEventListener('change', (e) => { remember = e.target.checked; persist(); });
   root.querySelector('[data-a="reset"]').addEventListener('click', () => {
     for (const k of ['look', 'globe', 'plant', 'landing', 'flight', 'render']) Object.assign(tune[k], structuredClone(CONFIG[k]));

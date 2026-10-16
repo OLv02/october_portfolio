@@ -21,7 +21,11 @@ export const CONFIG = {
   globe: {
     mode: 'coast',              // selected: 'coast' (compact + coast), 'compact', or 'current'
     brightness: 1.6,
-    aperture: 1,                // how far the seeds part around Ottawa on the way in
+    opening: 'blow',            // selected 16 Oct: 'blow' = blown away from the left edge while the camera dives slightly into Ottawa; 'part' = the seeds part around Ottawa (original)
+    blowDive: 0.35,             // selected: how far the camera dives into Ottawa during the blow (0 drift in late .. 1 full original dive)
+    quiver: false,              // selected: seeds tremble just before letting go
+    ottawaLast: true,           // selected: Ottawa's seeds are the last to let go
+    aperture: 1,                // selected 1.0: breath strength when blown; how far the seeds part around Ottawa when parting
     compactScale: 0.38,         // sprite size on the globe
     coastShare: 3 / 7,          // share of seeds given an alternate spot on a coastline
     bank: false,
@@ -64,7 +68,7 @@ export const TIER_SEEDS = { high: 8000, med: 6000, low: 3600 };
 export const RANGES = {
   windSpeed: [0, 2.5, 0.05], seeds: [500, 8000, 100], seedSize: [0.5, 2, 0.05], playfulness: [0, 2, 0.05],
   'look.backgroundBrightness': [0, 10, 0.1], 'look.pointStrength': [0, 2, 0.1],
-  'globe.brightness': [0.3, 8, 0.1], 'globe.aperture': [0, 2, 0.1], 'globe.compactScale': [0.25, 0.7, 0.01],
+  'globe.brightness': [0.3, 8, 0.1], 'globe.aperture': [0, 2, 0.1], 'globe.blowDive': [0, 1, 0.05], 'globe.compactScale': [0.25, 0.7, 0.01],
   'plant.brightness': [0.3, 3, 0.1], 'plant.sway': [0, 2, 0.05], 'plant.scale': [2, 6, 0.1],
   'landing.light': [0, 2, 0.05], 'landing.spread': [0.25, 2, 0.05], 'landing.plantRight': [0, 0.3, 0.01],
   'render.globeGain': [0.5, 4, 0.05], 'render.occluder': [0, 1, 0.05],
