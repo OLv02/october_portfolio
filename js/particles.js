@@ -51,6 +51,9 @@ uniform float uRadius, uAperture, uCoastMode, uGlobeCompact, uGlobeCompactScale,
 uniform float uWindSize, uFlutter, uLoops, uBackgroundBrightness, uPointStrength, uCameraRoll, uInteract;
 uniform vec2 uFlightHalfExtent, uViewportPx;
 uniform vec4 uMouse;
+// the light and the landing (local sequence 0..1) and the daisy's growth
+uniform float uLand, uGrowth, uFieldWidth, uFieldHeight, uPlantX, uGroundY, uPlantScale, uPlantBrightness, uSway, uShowRoots, uWarm, uLandingSpread;
+uniform vec3 uLandO, uFromBase, uCamR, uCamU, uCamF;
 ${PATH_GLSL}
 const float TAU = 6.2831853;
 const vec2 HUB = vec2(0., 222. / 512. - .5);
@@ -102,6 +105,56 @@ void seedPose(out vec3 p, out float size, out float angle, out vec3 colour, out 
   alpha = mix(.12 + .57 * lum, (.22 + .48 * h) * fog, morph);
   plantMix = 0.;
   kids = 1. - morph;
+
+  // ---- the light and the landing: most seeds leave on the breeze; their identities, once invisible, become the daisy.
+  // Three seeds ride along with you and settle on the soil, then fade (local 45-50%).
+  if (uLand > 0.) {
+    float Ls = uLand, role = aPlant.w;
+    vec3 windP = p; float windSize = size, windAngle = angle;
+    colour = mix(colour, colour * vec3(1.12, 1.02, .78), uWarm);
+    p.x -= smoothstep(.20, .48, Ls) * uFieldWidth * .32;
+    alpha *= 1. - smoothstep(.28, .40, Ls);
+    if (Ls >= .40 && role < .5) {
+      // every passing seed is invisible at this switch, so none is seen jumping to a bit of root or petal
+      float part = aLock.w, growth;
+      if (part < .5) growth = smoothstep(.18, .44, uGrowth);
+      else if (part < 1.5) growth = smoothstep(.33, .65, uGrowth);
+      else if (part < 2.5) growth = smoothstep(.45, .84, uGrowth);
+      else growth = smoothstep(.74, 1., uGrowth);
+      float reveal = smoothstep(aPlant.x - .08, aPlant.x + .08, growth) * smoothstep(0., .025, growth);
+      p = uLandO + aLock.xyz * uPlantScale + vec3(uPlantX, uGroundY, 0.);
+      float above = max(0., aLock.y);
+      p.x += sin(uTime * .7 + above * .5) * .025 * uSway * above * above * uPlantScale;   // still at the soil, freer up the stem
+      float tint = aPlant.z, dew = step(3.5, tint);
+      size = .060 * mix(.65, 1., step(1.5, part)) * uPlantScale / 7. * mix(1., 1.45, dew);
+      colour = part < .5 ? vec3(.46, .43, .28) : part < 1.5 ? vec3(.23, .47, .25) : part < 2.5 ? vec3(.30, .56, .30) : vec3(1., .65, .16);
+      if (part > 1.5) {
+        if (tint > .5 && tint < 1.5) colour = vec3(1., .96, .83);
+        else if (tint > 1.5 && tint < 2.5) colour = vec3(1., .66, .16);
+        else if (tint > 2.5 && tint < 3.5) colour = vec3(.56, .72, .39);
+        else if (dew > .5) colour = vec3(.85, 1., .91) * 1.35;
+      }
+      colour *= uPlantBrightness;
+      alpha = (part < 1.5 ? .38 : part < 2.5 ? .60 : .82) * reveal;
+      if (part < .5) alpha *= uShowRoots;
+      angle = 0.; plantMix = 1.; kids = 0.;
+    }
+    if (role > .5) {
+      float index = role - 1., K = uFieldHeight / 16.78;   // the study's view was 16.78 units tall
+      float ride = smoothstep(0., .20, Ls), land = smoothstep(.22 + index * .025, .40 + index * .025, Ls);
+      vec3 from = uFromBase + uCamR * (uFieldWidth * (.27 - index * .12) - sin(uTime * .19 + index) * .4 * K)
+                + uCamU * (uFieldHeight * (.17 + index * .065) + sin(uTime * .37 + index) * .23 * K) - uCamF * .4 * K;
+      float offset = index < .5 ? 0. : (index < 1.5 ? -.18 : .16) * uPlantScale * uLandingSpread;
+      vec3 soil = uLandO + vec3(uPlantX + offset, uGroundY + windSize * K * .16, .2 * K);
+      p = mix(mix(windP, from, ride), soil, land);
+      p.x += sin(land * 3.14159265) * (.8 + index * .2) * uLandingSpread * K;
+      p.y += sin(land * 3.14159265) * .30 * K;
+      size = mix(windSize, max(.4 * uWindSize, windSize) * K * mix(1.8, 1.1, land), ride);
+      angle = mix(windAngle, index < .5 ? .6 : -.45, land);   // the body tips as it reaches the ground
+      alpha = mix(alpha, .86, ride) * (1. - smoothstep(.45, .50, Ls));
+      plantMix = 0.; kids = 1.;
+    }
+  }
 
   // ---- a breath of air under the pointer
   if (uMouse.w > .001 && uInteract > .001) {
@@ -205,6 +258,10 @@ export function createMainSystem(data, N, eye, atlas) {
     uCameraRoll: { value: 0 }, uInteract: { value: 1 },
     uFlightHalfExtent: { value: new THREE.Vector2(18, 18) }, uViewportPx: { value: new THREE.Vector2(1, 1) },
     uMouse: { value: new THREE.Vector4(0, 0, 0, 0) },
+    uLand: { value: 0 }, uGrowth: { value: 0 }, uFieldWidth: { value: 30 }, uFieldHeight: { value: 17 }, uPlantX: { value: 0 }, uGroundY: { value: -2.7 },
+    uPlantScale: { value: 3.6 }, uPlantBrightness: { value: 1.2 }, uSway: { value: 1.1 }, uShowRoots: { value: 1 }, uWarm: { value: 0 }, uLandingSpread: { value: 1 },
+    uLandO: { value: new THREE.Vector3() }, uFromBase: { value: new THREE.Vector3() },
+    uCamR: { value: new THREE.Vector3(1, 0, 0) }, uCamU: { value: new THREE.Vector3(0, 1, 0) }, uCamF: { value: new THREE.Vector3(0, 0, -1) },
     uEye: { value: eye.clone() }, uLt: { value: TUN.L },
   };
   const seeds = new THREE.Points(g, additive(SEED_VERT, SEED_FRAG, u));
@@ -242,4 +299,26 @@ export function createOccluder(texture, meta, S0, colour) {
   mesh.renderOrder = 5;
   mesh.frustumCulled = false;
   return mesh;
+}
+
+// The ground the daisy grows from: a soft band of soil below the soil line, drawn behind the seeds (so the roots show,
+// as in a cutaway) in screen colours that post.js's tone curve maps back onto.
+export function createGround(exposure) {
+  const u = { uOp: { value: 0 }, uExposure: { value: exposure } };
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.ShaderMaterial({
+    uniforms: u, transparent: true, depthTest: false, depthWrite: false,
+    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`,
+    fragmentShader: `uniform float uOp, uExposure; varying vec2 vUv;
+      vec3 untone(vec3 c){ return -log(max(vec3(1e-4), 1. - c)) / uExposure; }
+      void main(){
+        float t = 1. - vUv.y;   // 0 at the soil line, 1 at the bottom of the screen
+        vec3 c = mix(vec3(.278, .247, .161), vec3(.102, .149, .114), smoothstep(0., 1., t));
+        float a = mix(.11, .9, smoothstep(0., 1., t));
+        float line = exp(-pow(t * 220., 2.)) * .2;
+        gl_FragColor = vec4(untone(mix(c, vec3(.74, .71, .55), line / max(a + line, 1e-3))), (a + line) * uOp);
+      }`,
+  }));
+  mesh.renderOrder = 4;
+  mesh.frustumCulled = false;
+  return { mesh, u };
 }

@@ -48,6 +48,10 @@ export const CONFIG = {
     capacity: 8000,             // parents built once; the profile count is a prefix of these
     pointsPerSeed: 4,
   },
+  render: {                     // proposed: compensation for this engine's tone curve and bloom, which the proof didn't have
+    globeGain: 1.5,             // extra gain on the globe's seeds
+    occluder: 0.55,             // how strongly the soft disc behind the globe hides the canopy light
+  },
   // the light and landing sequence runs over this part of the page's flight progress
   segments: { dive: [0.05, 0.25], landing: [0.66, 1] },
 };
@@ -62,5 +66,6 @@ export const RANGES = {
   'globe.brightness': [0.3, 8, 0.1], 'globe.aperture': [0, 2, 0.1], 'globe.compactScale': [0.25, 0.7, 0.01],
   'plant.brightness': [0.3, 3, 0.1], 'plant.sway': [0, 2, 0.05], 'plant.scale': [2, 6, 0.1],
   'landing.light': [0, 2, 0.05], 'landing.spread': [0.25, 2, 0.05], 'landing.plantRight': [0, 0.3, 0.01],
+  'render.globeGain': [0.5, 4, 0.05], 'render.occluder': [0, 1, 0.05],
   'flight.halfHeight': [8, 30, 0.5], 'flight.minHalfWidth': [6, 20, 0.5], 'flight.motionEase': [0.02, 0.5, 0.01],
 };

@@ -6,9 +6,8 @@ import Lenis from './vendor/lenis.mjs';
 import { TUN, pathPos, pathBank } from './path.js';
 import { TIERS, detectDevice, AdaptiveQuality } from './quality.js';
 import { mulberry32, buildMain } from './build-data.js';
-import { createMainSystem, createOccluder, createSeedAtlas, setSeedCount } from './particles.js';
+import { createMainSystem, createOccluder, createSeedAtlas, setSeedCount, createGround } from './particles.js';
 import { Sky } from './sky.js';
-import { Solar } from './solar.js';
 import { Post } from './post.js';
 import { Sound } from './audio.js';
 import { computeLayout } from './layout.js';
@@ -60,7 +59,6 @@ const sampleTier = TIERS[device.sample];
 
 // ---------- world anchors ----------
 const eye = new THREE.Vector3(GLOBE.eye[0] * S0, GLOBE.eye[1] * S0, -0.1);   // Ottawa
-const sunPos = eye.clone().add(new THREE.Vector3(0, 0, -(L + TUN.sunGap)));
 const vaultCenter = eye.clone().add(new THREE.Vector3(0, 0, -(L + TUN.sunGap + TUN.vaultGap)));
 
 // ---------- always-on layers (render behind the loading gate) ----------
@@ -68,8 +66,8 @@ const post = new Post(renderer, hdrType);
 const sky = new Sky(renderer, sampleTier, hdrType, R, SKY, post.u.uExposure.value);
 sky.addTo(scene);
 sky.setDust(tier.dust);
-const solar = new Solar(R);
-scene.add(solar.group);
+const ground = createGround(post.u.uExposure.value);
+scene.add(ground.mesh);
 post.u.uTaps.value = REDUCED ? 0 : tier.zoomTaps;
 post.u.uGrain.value = device.coarse ? 0.028 : 0.035;
 const sound = new Sound();
@@ -127,7 +125,7 @@ function resize(force) {
   post.setSize(Math.round(W * dpr), Math.round(H * dpr), tier.bloom);
   camera.aspect = W / H;
   const eb = heroEl.firstElementChild.getBoundingClientRect(), hb = document.querySelector('.chrome').getBoundingClientRect();
-  layout = computeLayout(W, H, S0, vaultCenter, { textTop: eb.top - (parseFloat(heroEl.style.transform.split(',')[1]) || 0), headerBottom: hb.bottom + 8 });
+  layout = computeLayout(W, H, S0, vaultCenter, { textTop: eb.top - (parseFloat(heroEl.style.transform.split(',')[1]) || 0), headerBottom: hb.bottom + 8 }, { scale: tune.plant.scale, right: tune.landing.plantRight });
   computeBeats();
 }
 addEventListener('resize', () => resize(false));
@@ -227,7 +225,7 @@ let ready = false;
     const data = await buildData(pix, coast && coast.length === pix.pixels.length ? coast : null);
     mainSys = createMainSystem(data.main, seedBudget(), eye, createSeedAtlas(mulberry32(411)));
     const tex = new THREE.CanvasTexture(pix.canvas); tex.flipY = false; tex.generateMipmaps = false; tex.minFilter = THREE.LinearFilter;
-    occluder = createOccluder(tex, GLOBE, S0, THEME.bg.map((c) => c * 0.35));
+    occluder = createOccluder(tex, GLOBE, S0, THEME.forest.map((c) => (-Math.log(1 - c) / post.u.uExposure.value) * 0.6));
     scene.add(mainSys.points, mainSys.kids, occluder);
     applyTier(tier);
     progress(1);
@@ -370,6 +368,10 @@ function update(dt) {
   const introE = ease(introT);
   const dive = seg(pS, 0.05, 0.22), tun = seg(pS, 0.22, 0.66), sunA = seg(pS, 0.66, 0.72);
   const rev = seg(pS, 0.72, 0.79);
+  // the light and landing sequence, in its own local time (the study's 0..1), mapped onto this part of the page
+  const [l0, l1] = tune.segments.landing, Ls = seg(pS, l0, l1);
+  const approach = sm(0.1, 0.5, Ls), lightK = sm(0.06, 0.28, Ls) * (1 - sm(0.43, 0.78, Ls)), groundK = sm(0.25, 0.5, Ls);
+  const growth = clamp01((Ls - 0.3) / 0.65);
   const act = pS < 0.22 ? 'hero' : pS < 0.72 ? 'tunnel' : 'vault';
   const afterK = sm(0, 1, seg(pS, 0.94, 1) * 0.4 + extra * 0.75);
   const tunnelGate = seg(pS, 0.21, 0.25) * (1 - seg(pS, 0.68, 0.72));
@@ -414,14 +416,18 @@ function update(dt) {
     fov = 64 + (REDUCED ? 0 : Math.min(9, spd * 6));
     camPos.x += par.x * 0.22 * parK; camPos.y += par.y * 0.14 * parK;
   } else {
-    const VC = layout.vaultCentered;
+    // come out of the light and slow to rest in front of the plant
+    const LF = layout.land;
     const startS = L + 26;
     tmp.set(eye.x, eye.y, eye.z - startS);
-    camPos.copy(tmp).lerp(VC.pos, easeOut(rev));
+    camPos.copy(tmp).lerp(LF.pos, easeOut(rev));
     tmp2.copy(tmp); tmp2.z -= 9;
-    camTgt.copy(tmp2).lerp(VC.target, easeOut(rev));
+    camTgt.copy(tmp2).lerp(LF.target, easeOut(rev));
     fov = lerp(64, layout.fov, ease(rev));
-    const w = 0.4 * seg(pS, 0.75, 0.8) * parK;
+    // afterwards a slow breath of a drift while the rest of the page scrolls over the daisy
+    const drift = REDUCED ? 0 : afterK;
+    camPos.x += Math.sin(T * 0.11) * 0.12 * drift; camPos.y += (Math.sin(T * 0.07) * 0.08 + 0.15 * Math.sin(extra * 0.6)) * drift;
+    const w = 0.25 * seg(pS, 0.75, 0.8) * parK;
     camPos.x += par.x * w; camPos.y += par.y * w * 0.6;
   }
   camera.position.copy(camPos);
@@ -449,7 +455,7 @@ function update(dt) {
   }
   prevTravel = travel;
   if (SHOT) { windT = shot.t; motion = 0; }
-  else windT += dt * P.windSpeed * (1 - motion * tunnelGate);
+  else windT += dt * P.windSpeed * (1 - motion * tunnelGate) * (1 - 0.82 * approach);
   if (mainSys) {
     const U = mainSys.uniforms, G = tune.globe;
     U.uTime.value = windT; U.uIntro.value = introT;
@@ -459,7 +465,7 @@ function update(dt) {
     U.uOp.value = entered ? 1 : 0.42 * gateFade;
     U.uPxScale.value = pxScale / K_SIZE; U.uMaxPt.value = maxPt; U.uDpr.value = dpr;
     U.uViewportPx.value.set(W * dpr, H * dpr);
-    U.uRadius.value = S0; U.uAperture.value = G.aperture; U.uGlobeBrightness.value = G.brightness;
+    U.uRadius.value = S0; U.uAperture.value = G.aperture; U.uGlobeBrightness.value = G.brightness * tune.render.globeGain;
     U.uCoastMode.value = G.mode === 'coast' ? 1 : 0; U.uGlobeCompact.value = G.mode === 'current' ? 0 : 1; U.uGlobeCompactScale.value = G.compactScale;
     U.uWindSize.value = P.seedSize; U.uLoops.value = P.playfulness; U.uFlutter.value = 0.35 + 0.65 * P.playfulness;
     U.uBackgroundBrightness.value = tune.look.backgroundBrightness; U.uPointStrength.value = tune.look.pointStrength;
@@ -467,62 +473,54 @@ function update(dt) {
     U.uFlightHalfExtent.value.set(Math.max(tune.flight.minHalfWidth, tune.flight.halfHeight * camera.aspect), tune.flight.halfHeight);
     U.uCameraRoll.value = bank;
     U.uInteract.value = REDUCED ? 0.4 : 1;
+    const LF = layout.land, Lk = tune.landing;
+    U.uLand.value = Ls; U.uGrowth.value = growth;
+    U.uFieldWidth.value = LF.fieldW; U.uFieldHeight.value = LF.fieldH; U.uPlantX.value = LF.plantX; U.uGroundY.value = LF.groundY;
+    U.uPlantScale.value = LF.scale; U.uLandO.value.copy(LF.origin);
+    U.uPlantBrightness.value = tune.plant.brightness; U.uSway.value = tune.plant.sway; U.uShowRoots.value = tune.plant.showRoots ? 1 : 0;
+    U.uWarm.value = Math.min(1, (lightK + afterK * 0.18) * Lk.light); U.uLandingSpread.value = Lk.spread;
     U.uMouse.value.set(pointer.world.x, pointer.world.y, pointer.world.z, pointer.strength);
   }
   camera.updateMatrixWorld();
+  if (mainSys) {
+    // the three landing seeds ride along in front of the camera, where the landing framing will put them
+    const U = mainSys.uniforms;
+    U.uCamR.value.setFromMatrixColumn(camera.matrixWorld, 0); U.uCamU.value.setFromMatrixColumn(camera.matrixWorld, 1);
+    U.uCamF.value.setFromMatrixColumn(camera.matrixWorld, 2).negate();
+    U.uFromBase.value.copy(camera.position).addScaledVector(U.uCamF.value, layout.land.dist);
+  }
+  ground.mesh.position.set(layout.land.origin.x, layout.land.origin.y + layout.land.groundY - layout.land.fieldH * 0.17, layout.land.origin.z);
+  ground.mesh.scale.set(layout.land.fieldW * 3, layout.land.fieldH * 0.34, 1);
+  ground.u.uOp.value = groundK;
+  ground.mesh.visible = groundK > 0.001;
   if (occluder) {
-    occluder.material.uniforms.uOp.value = 0.9 * sm(0.55, 1, introT) * (1 - seg(pS, 0.09, 0.17));
+    occluder.material.uniforms.uOp.value = tune.render.occluder * sm(0.55, 1, introT) * (1 - seg(pS, 0.09, 0.17));
     occluder.visible = pS < 0.2;
   }
-
-  // --- the sun: a small system on the landing screen, then the light at the end of the tunnel
-  let sunOp, heat = 0;
-  if (pS < 0.22) {
-    const s = layout.solarHero;
-    solar.group.position.copy(s.pos); solar.group.scale.setScalar(s.scale); solar.group.rotation.set(1.15, 0, 0.15);
-    solar.coronaU.uSize.value = 0.5 * s.scale * 9;
-    sunOp = introE * (1 - seg(pS, 0.05, 0.12));
-  } else {
-    solar.group.position.copy(sunPos); solar.group.scale.setScalar(2.3); solar.group.rotation.set(Math.PI / 2 - 0.35, 0, 0);
-    heat = sm(0.45, 0.71, pS);
-    solar.coronaU.uSize.value = 0.5 * 2.3 * (9 + heat * 8);
-    sunOp = seg(pS, 0.23, 0.32) * (1 - seg(pS, 0.712, 0.73));
-  }
-  solar.update(T, sunOp, heat * 2);
-  solar.setScale(pxScale, maxPt);
-  solar.group.visible = sunOp > 0.001;
-  solar.group.updateMatrixWorld();
-  tmp.setFromMatrixPosition(solar.sun.matrixWorld);
-  const inFront = tmp2.copy(tmp).sub(camera.position).dot(fwd.set(0, 0, -1).applyQuaternion(camera.quaternion)) > 0;
-  tmp.project(camera);
-  const onScreen = inFront && Math.abs(tmp.x) < 1.3 && Math.abs(tmp.y) < 1.3;
-  post.u.uSun.value.set(tmp.x * 0.5 + 0.5, tmp.y * 0.5 + 0.5, onScreen ? sunOp * (pS < 0.22 ? 0.25 : 0.35 + 1.4 * heat) : 0);
 
   if (pS > 0.69 && !cues.boom) { cues.boom = true; sound.boom(); }
   if (pS < 0.66) cues.boom = false;
 
   // --- the look of each act
   const warm = sm(0.3, 0.7, pS) * (1 - sm(0.72, 0.78, pS));
-  look.tint.set(1, 1, 1).lerp(tmp.set(1.18, 1.0, 0.82), warm);
+  look.tint.set(1, 1, 1).lerp(tmp.set(1.07, 1.02, 0.9), warm);
   look.sky = pS < 0.72 ? lerp(1, 0.8, sm(0.2, 0.3, pS)) : lerp(0.8, 1, sm(0.72, 0.8, pS));
   look.dust = 1;
   sky.update(camera, T, dt, look);
   sky.setScale(dpr, pxScale);
 
-  const white = sm(0.687, 0.697, pS) * (1 - sm(0.7, 0.728, pS));
   post.u.uTime.value = T;
-  post.u.uBloom.value = act === 'hero' ? 0.85 : act === 'tunnel' ? 1.0 : 0.95 + 0.1 * afterK;
+  // bloom eases off as the daisy grows, so its petals and florets stay separate points instead of one glow
+  post.u.uBloom.value = act === 'hero' ? 0.85 : act === 'tunnel' ? 1.0 : lerp(0.95, 0.22, sm(0.3, 0.8, growth));
   post.u.uZoom.value = REDUCED ? 0 : Math.min(0.09, spd * 0.055) * (act === 'vault' ? 0 : 1);
   post.u.uCA.value = REDUCED ? 0 : 0.0016 + Math.min(0.008, spd * 0.004);
-  post.u.uWhite.value = white;
-  post.u.uFlash.value = 0;
-  post.u.uGain.value.set(1, 1, 1).lerp(tmp.set(1.06, 1.0, 0.9), warm);
+  post.u.uWarm.value = Math.min(1, (lightK + afterK * 0.18) * tune.landing.light) * 0.75;
+  post.u.uGain.value.set(1, 1, 1).lerp(tmp.set(1.04, 1.0, 0.93), warm);
   post.u.uLift.value.set(0, 0, 0);
-  post.u.uRip.value.w = 0;
 
   // --- sound follows the flight
   if (entered && introT > 0.85 && !cues.chime) { cues.chime = true; sound.chime(); }
-  sound.update({ act, speed: spd, tunnel: tunnelGate, sun: heat });
+  sound.update({ act, speed: spd, tunnel: tunnelGate, sun: lightK });
   setSoundUI(soundState());
 
   // --- words on screen
@@ -569,4 +567,4 @@ function seek(p, ex = 0) {
   scrollTo(0, y);
   return y;
 }
-window.__v8 = { get state() { return { pS, extra, T, tier: tier.name, entered, ready, W, H, dpr }; }, raw: rawProgress, seek, pause: (b) => { paused = !!b; }, setDprCap: (c) => { dprCap = c || 9; resize(true); }, camera, renderer, post, layout: () => layout, applyTier, TIERS, sound, solar, sky, scene, tune, seeds: () => mainSys };
+window.__v8 = { get state() { return { pS, extra, T, tier: tier.name, entered, ready, W, H, dpr }; }, raw: rawProgress, seek, pause: (b) => { paused = !!b; }, setDprCap: (c) => { dprCap = c || 9; resize(true); }, camera, renderer, post, layout: () => layout, applyTier, TIERS, sound, sky, scene, tune, seeds: () => mainSys };
