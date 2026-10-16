@@ -1,6 +1,6 @@
 // Post-processing: the difference between "digital" and "dreamlike".
-// Bloom (dual-filter, cheap enough for phones), sun streak + flares, speed zoom-blur with
-// spectral fringing, shockwave ripple, act-by-act colour grade, vignette, film grain.
+// Bloom (dual-filter, cheap enough for phones), speed zoom-blur with spectral fringing,
+// the warm canopy light at the end of the journey, act-by-act colour grade, vignette, film grain.
 import * as THREE from './vendor/three.module.min.js';
 
 const VS = /* glsl */`varying vec2 vUv; void main(){ vUv = position.xy * .5 + .5; gl_Position = vec4(position.xy, 0., 1.); }`;
@@ -42,21 +42,14 @@ void main(){
 const COMPOSITE = /* glsl */`
 uniform sampler2D tScene, tBloom;
 uniform vec2 uRes; uniform float uTime;
-uniform float uBloom, uExposure, uZoom, uCA, uVig, uGrain, uWhite, uFlash;
-uniform vec3 uSun;   // screen uv xy, intensity
-uniform vec4 uRip;   // screen uv xy, radius, strength
-uniform vec3 uGain, uLift; uniform float uSat;
+uniform float uBloom, uExposure, uZoom, uCA, uVig, uGrain, uWarm;
+uniform vec3 uGain, uLift, uWarmColour; uniform float uSat;
 uniform int uTaps;
 varying vec2 vUv;
 float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 void main(){
   vec2 asp = vec2(uRes.x / uRes.y, 1.);
   vec2 uv = vUv;
-  if (uRip.w > .001) {
-    vec2 d = (uv - uRip.xy) * asp; float r = length(d);
-    float k = exp(-pow((r - uRip.z) / .045, 2.)) * uRip.w;
-    uv -= normalize(d + 1e-5) / asp * k * .035;
-  }
   vec2 c = vec2(.5), dir = uv - c;
   vec3 col;
   if (uZoom > .002 && uTaps > 0) {
@@ -76,31 +69,22 @@ void main(){
   }
   col += texture2D(tBloom, uv).rgb * uBloom;
 
-  if (uSun.z > .001) {
-    vec2 sd = (vUv - uSun.xy) * asp;
-    float streak = exp(-abs(sd.y) * 90.) * exp(-abs(sd.x) * 1.6);
-    float glow = .06 / (1. + dot(sd, sd) * 40.);
-    col += vec3(.55, .75, 1.) * streak * uSun.z * .55 + vec3(1., .7, .4) * glow * uSun.z;
-    vec2 axis = c - uSun.xy;
-    for (int i = 0; i < 3; i++) {
-      float k = .55 + float(i) * .55;
-      vec2 gp = (vUv - (uSun.xy + axis * k)) * asp;
-      float g = smoothstep(.07 + float(i) * .03, 0., length(gp));
-      col += mix(vec3(.4, .9, .8), vec3(.8, .5, 1.), float(i) * .5) * g * .07 * uSun.z;
-    }
-  }
-
   vec2 vd = (vUv - .5) * asp;
   float wr = length(vd);
-  col *= uExposure * (1. + uFlash) * (1. + uWhite * 6.);
+  col *= uExposure;
   col = 1. - exp(-col);
   col = col * uGain + uLift * (1. - col);
   float l = dot(col, vec3(.299, .587, .114));
   col = mix(vec3(l), col, uSat);
-  col *= 1. - uVig * (1. - uWhite) * smoothstep(.35, 1.15, wr);
-  // flying through the sun: light floods outward from the centre, warm at the core
-  float wm = smoothstep(0., .45, uWhite * 1.7 - wr);
-  col = mix(col, mix(vec3(1., .93, .8), vec3(1., .98, .95), wm), wm);
+  col *= 1. - uVig * smoothstep(.35, 1.15, wr);
+  // warm light through the canopy: a soft glow from the top right and two faint diagonal shafts
+  if (uWarm > .001) {
+    vec2 g = (vUv - vec2(.78, .96)) * asp / max(asp.x, 1.);
+    float glow = (1. - smoothstep(0., .62, length(g))) * .53;
+    float t = dot(vec2(vUv.x * asp.x, 1. - vUv.y), vec2(.899, .438)) / (asp.x * .899 + .438);
+    float shafts = (1. - smoothstep(0., .07, abs(t - .49))) * .133 + (1. - smoothstep(0., .06, abs(t - .65))) * .07;
+    col = mix(col, uWarmColour, clamp(uWarm * (glow + shafts), 0., .9));
+  }
   col += (hash(vUv * uRes + fract(uTime) * 91.7) - .5) * uGrain;
   gl_FragColor = vec4(col, 1.);
 }`;
@@ -124,8 +108,7 @@ export class Post {
     this.u = {
       tScene: { value: null }, tBloom: { value: null }, uRes: { value: new THREE.Vector2() }, uTime: { value: 0 },
       uBloom: { value: 0.9 }, uExposure: { value: this.hdr ? 1.25 : 2.1 }, uZoom: { value: 0 }, uCA: { value: 0 },
-      uVig: { value: 0.32 }, uGrain: { value: 0.035 }, uWhite: { value: 0 }, uFlash: { value: 0 },
-      uSun: { value: new THREE.Vector3() }, uRip: { value: new THREE.Vector4() },
+      uVig: { value: 0.32 }, uGrain: { value: 0.035 }, uWarm: { value: 0 }, uWarmColour: { value: new THREE.Vector3(0.894, 0.78, 0.541) },
       uGain: { value: new THREE.Vector3(1, 1, 1) }, uLift: { value: new THREE.Vector3() }, uSat: { value: 1 }, uTaps: { value: 6 },
     };
     this.mComp = m(COMPOSITE, this.u);

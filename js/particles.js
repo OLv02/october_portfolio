@@ -1,199 +1,229 @@
-// The star system: one set of particles that is the globe, then the tunnel, then the padlock.
-// Plus the laptop (drawn in code) and a soft dark disc that keeps the sky from showing through the globe.
+// The seeds: one set of dandelion seeds that is the globe, then the wind you fly through, then the daisy.
+// Each seed is a textured sprite (a parachute drawn once into a canvas atlas) plus four small points on its filaments
+// that share its exact pose. Additive blending, no depth test, raw (unmanaged) colour, like the rest of the scene.
 import * as THREE from './vendor/three.module.min.js';
 import { PATH_GLSL, TUN } from './path.js';
 
-const SPRITE_FRAG = /* glsl */`
-varying vec3 vColor;
-void main(){
-  float d = length(gl_PointCoord - .5) * 2.;
-  if (d > 1.) discard;
-  float core = smoothstep(.42, 0., d);
-  float glow = pow(1. - d, 2.4);
-  gl_FragColor = vec4(vColor * (glow * .8 + core * 1.7), 1.);
-}`;
-
-const MAIN_VERT = /* glsl */`
-attribute vec4 aScat;
-attribute vec4 aTun;
-attribute vec4 aLock;
-attribute vec2 aMisc;
-uniform float uTime, uIntro, uIris, uT1, uT2, uLock, uOp, uSizeK, uPxScale, uMaxPt;
-uniform float uFogNear, uFogFar, uScreenGlow, uSheen, uFaceX, uLockFlash, uInteract, uSpin;
-uniform float uAfter, uGalRot, uLockDim;
-uniform vec3 uV;
-uniform mat3 uLockRot, uHaloRot;
-uniform vec4 uMouse, uRipple;
-varying vec3 vColor;
-${PATH_GLSL}
-const vec3 TEAL = vec3(.36, .79, .65);
-const vec3 PURP = vec3(.69, .66, .93);
-const vec3 MINT = vec3(.62, .88, .80);
-const vec3 WHITE = vec3(.93, .96, 1.);
-mat2 rot2(float a){ float c = cos(a), s = sin(a); return mat2(c, s, -s, c); }
-
-vec3 lockWorld(vec4 L, out vec3 lpOut){
-  vec3 lp = L.xyz; float g = L.w;
-  if (g > 3.5) { lp.xz = rot2(uTime * .05) * lp.xz; lp.y += sin(uTime * .4 + lp.x) * .12; lpOut = lp; return uV + lp; }
-  if (g > 2.5) { lp.xz = rot2(uTime * .12) * lp.xz; lp = uHaloRot * lp; lpOut = lp; return uV + lp; }
-  if (g > 1.5) {
-    float kIn = smoothstep(0., .45, uLock), kPush = smoothstep(.45, .58, uLock), kTurn = smoothstep(.62, .80, uLock);
-    lp.xy = rot2(-kTurn * 1.5708) * lp.xy;
-    lp.xz = rot2((1. - kIn) * 1.4) * lp.xz;
-    lp += vec3(0., -.69, 1.035) + vec3(0., 0., (1. - kPush) * .74) + (1. - kIn) * vec3(3.4, 1.6, 2.6);
-  } else if (g > .5) {
-    float so = smoothstep(.80, .95, uLock);
-    vec3 q = lp - vec3(1.265, 0., 0.);
-    q.xz = rot2(so * 1.25) * q.xz;
-    lp = q + vec3(1.265, 0., 0.);
-    lp.y += so * 1.15;
+// ---------- the seed atlas: 37 curved filaments with barbs, a stalk and a seed body ----------
+export const POINTS_PER_SEED = 4;
+export const HUB = [256 / 512, 222 / 512];
+export function createSeedAtlas(random) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 512;
+  const c = canvas.getContext('2d');
+  c.lineCap = 'round';
+  const hub = { x: 256, y: 222 }, anchors = [];
+  for (let i = 0; i < 37; i++) {
+    const a = Math.PI + (i / 36) * Math.PI;
+    const ex = 256 + Math.cos(a) * (173 + random() * 20), ey = 211 + Math.sin(a) * (125 + random() * 25);
+    c.strokeStyle = `rgba(245,239,214,${0.42 + random() * 0.4})`; c.lineWidth = 1.2 + random() * 0.8;
+    c.beginPath(); c.moveTo(hub.x, hub.y); c.quadraticCurveTo((hub.x + ex) / 2, ey + 29, ex, ey); c.stroke();
+    if ([4, 13, 23, 32].includes(i)) {
+      const t = 0.72, o = 1 - t;
+      anchors.push([(o * o * hub.x + 2 * o * t * (hub.x + ex) / 2 + t * t * ex) / 512 - 0.5, (o * o * hub.y + 2 * o * t * (ey + 29) + t * t * ey) / 512 - 0.5]);
+    }
+    for (let j = 0; j < 3; j++) {
+      const f = 0.79 + j * 0.075, x = hub.x + (ex - hub.x) * f, y = hub.y + (ey - hub.y) * f;
+      c.lineWidth = 0.65; c.strokeStyle = 'rgba(247,243,222,.48)';
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(a - 0.5) * 14, y + Math.sin(a - 0.5) * 14); c.stroke();
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(a + 0.5) * 14, y + Math.sin(a + 0.5) * 14); c.stroke();
+    }
   }
-  lpOut = lp;
-  lp.y += .28;
-  return uV + uLockRot * lp;
+  c.strokeStyle = 'rgba(233,218,173,.85)'; c.lineWidth = 2;
+  c.beginPath(); c.moveTo(256, 222); c.quadraticCurveTo(263, 295, 251, 365); c.stroke();
+  c.save(); c.translate(251, 381); c.rotate(0.12);
+  const g = c.createLinearGradient(-5, 0, 6, 0); g.addColorStop(0, '#86704b'); g.addColorStop(0.5, '#d1ad70'); g.addColorStop(1, '#a08352');
+  c.fillStyle = g; c.beginPath(); c.ellipse(0, 0, 5.5, 21, 0, 0, Math.PI * 2); c.fill();
+  c.strokeStyle = '#e4c38b'; c.lineWidth = 0.65; c.beginPath(); c.moveTo(0, -17); c.lineTo(0, 16); c.stroke(); c.restore();
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.flipY = false;                  // point-sprite coordinates start top-left, like the canvas
+  tex.colorSpace = THREE.NoColorSpace;
+  tex.userData.anchors = anchors;
+  return tex;
 }
 
-void main(){
-  float hash = aScat.w, lum = aMisc.x, rnd = aMisc.y;
+// ---------- one pose for both the seeds and their attached points ----------
+const POSE = /* glsl */`
+attribute vec4 aScat, aTun, aCoast, aLock, aPlant;
+attribute vec2 aMisc;
+uniform float uTime, uIntro, uDive, uTravel, uOp, uPxScale, uMaxPt, uDpr;
+uniform float uRadius, uAperture, uCoastMode, uGlobeCompact, uGlobeCompactScale, uGlobeBrightness;
+uniform float uWindSize, uFlutter, uLoops, uBackgroundBrightness, uPointStrength, uCameraRoll, uInteract;
+uniform vec2 uFlightHalfExtent, uViewportPx;
+uniform vec4 uMouse;
+// the light and the landing (local sequence 0..1) and the daisy's growth
+uniform float uLand, uGrowth, uFieldWidth, uFieldHeight, uPlantX, uGroundY, uPlantScale, uPlantBrightness, uSway, uShowRoots, uWarm, uLandingSpread;
+uniform vec3 uLandO, uFromBase, uCamR, uCamU, uCamF;
+${PATH_GLSL}
+const float TAU = 6.2831853;
+const vec2 HUB = vec2(0., 222. / 512. - .5);
 
-  // ---- globe (Ottawa opens up as the camera dives in)
-  vec3 pp = position;
-  vec2 rel = pp.xy - uEye.xy;
-  float d = length(rel) + 1e-4;
-  pp.xy += rel / d * uIris * 1.8 * exp(-d * 1.1);
-  pp.z += uIris * 1.4 * exp(-d * 1.6);
-  float ui = clamp(uIntro * 1.8 - hash * .6, 0., 1.); ui = 1. - pow(1. - ui, 5.);
-  vec3 sc = aScat.xyz; sc.xy = vec2(.5, 0.) + rot2((1. - ui) * 2.4 + uSpin) * (sc.xy - vec2(.5, 0.));
-  vec3 p = mix(sc, pp, ui);
+// p, sprite size (world), angle, colour, alpha; compact = globe sprite mode; plantMix = drawn as a round plant point;
+// kids = how visible the attached filament points are
+void seedPose(out vec3 p, out float size, out float angle, out vec3 colour, out float alpha, out float compact, out float plantMix, out float kids){
+  float h = aScat.w, r = aMisc.y, R = uRadius, k4 = R / 4.;
 
-  vec3 base = hash < .45 ? TEAL : (hash < .8 ? PURP : MINT);
-  if (lum > .62) base = WHITE;
-  vec3 col = base * (.25 + lum);
-  float lit = smoothstep(.05, .9, uFaceX - position.x) * smoothstep(.42, .9, lum);
-  col = mix(col, vec3(.72, .86, 1.) * 1.2, lit * .34 * uScreenGlow);
-  float sz = rnd < .02 ? .16 + .1 * fract(rnd * 53.) : .022 + .045 * lum + .012 * fract(rnd * 97.);
-  // as a galaxy, the stars are fewer-looking but bigger and brighter
-  sz *= mix(2.7, 1., ui); col *= mix(1.45, 1., ui);
+  // ---- the globe, with the seeds parting around Ottawa on the way in
+  vec4 g4 = mix(vec4(position, aMisc.x), aCoast, uCoastMode);
+  vec3 globe = g4.xyz;
+  vec2 delta = globe.xy - uEye.xy; float dist = length(delta);
+  float open = smoothstep(.24, .62, uDive) * uAperture;
+  vec2 away = dist > .001 ? delta / dist : vec2(cos(h * TAU), sin(h * TAU));
+  float near = 1. - smoothstep(.10 * R, .85 * R, dist);
+  globe.xy += away * open * near * R * .70;
+  globe.z += open * near * .45 * k4;
+  globe.xy += vec2(sin(uTime * .32 + h * 31.), cos(uTime * .27 + h * 21.)) * .018 * uFlutter * k4;
+  // entering: the seeds blow in from the right, still tumbling, and settle onto the globe
+  float ui = clamp(uIntro * 1.8 - h * .6, 0., 1.); ui = 1. - pow(1. - ui, 5.);
+  vec3 start = aScat.xyz + vec3(sin(uTime * .31 + h * 9.) * .4, sin(uTime * .5 + h * 17.) * .3, 0.);
+  globe = mix(start, globe, ui);
 
-  // dissolve from the outside in: hair and shoulders stream into the tunnel first, the eye goes last
-  float dEye = length(position.xy - uEye.xy);
-  float u1 = clamp(uT1 * 1.9 - (.3 * (1. - smoothstep(0., 2.2, dEye)) + hash * .25 + aTun.x / uLt * .35), 0., 1.); u1 = u1 * u1 * (3. - 2. * u1);
-  float u2 = clamp(uT2 * 1.5 - hash * .5, 0., 1.); u2 = u2 * u2 * (3. - 2. * u2);
+  // ---- the wind: stable depth slots along the flight path, recycled around the camera, in a box that fills the screen
+  float outer = clamp(dist / (R * 2.), 0., 1.);
+  float morph = smoothstep(.44 + .12 * (1. - outer), .70 + .12 * (1. - outer), uDive);
+  float slot = mod(aTun.x - uTime * .18 - uTravel + 24., 105.) + uTravel - 24.;
+  vec3 P, N, B; pathFrame(slot, P, N, B);
+  float hx = uFlightHalfExtent.x, hy = uFlightHalfExtent.y;
+  float across = mod(aTun.y * 2. * hx - uTime * (.45 + .55 * h) + hx, 2. * hx) - hx;
+  float vertical = aTun.z * 2. * hy + sin(uTime * .45 + h * 15.) * .25 * uFlutter;
+  vec3 wind = P + N * across + B * vertical;
+  // now and then a seed is caught by a gust and turns a loop that travels with it
+  float cyc = fract(uTime * .027 + h * 7.3), k = clamp((cyc - .28) / .24, 0., 1.), caught = step(.82, fract(h * 23.71)) * uLoops;
+  wind += N * sin(k * TAU) * .75 * caught + B * (1. - cos(k * TAU)) * .6 * caught;
+  p = mix(globe, wind, morph);
 
-  // ---- tunnel
-  if (u1 > 0. && u2 < 1.) {
-    float s = aTun.x, th = aTun.y, r = aTun.z, kind = aTun.w;
-    vec3 tc; float ts;
-    if (kind < 1.5)      { th += uTime * .22; tc = mix(vec3(.78, .95, 1.), TEAL * 1.25, hash) * 1.1; ts = .14; }
-    else if (kind < 2.5) { th += uTime * .03; tc = (hash < .5 ? PURP : TEAL) * .4; ts = .1; }
-    else if (kind < 3.5) { s = mod(s - uTime * 14., uLt); tc = vec3(1., .8, .5) * 1.45; ts = .16; }
-    else if (kind < 4.5) { tc = WHITE * .8; ts = .085; }
-    else { float pulse = pow(max(0., sin(s * .11 - uTime * 3.2)), 10.); tc = TEAL * (.35 + 1.8 * pulse); ts = .12; }
-    r *= funnel(s);
-    vec3 P, N, B; pathFrame(s, P, N, B);
-    vec3 tp = P + (N * cos(th) + B * sin(th)) * r;
-    tc = mix(tc, tc * vec3(1.25, .95, .7), smoothstep(uLt * .5, uLt, s) * .55);
-    // in flight, the stars spiral into the pupil like water down a drain, dimmed so they read as streams
-    float flight = 4. * u1 * (1. - u1);
-    vec3 m = mix(p, tp, u1);
-    m.xy = uEye.xy + rot2(flight * 2.4) * (m.xy - uEye.xy);
-    p = m; col = mix(col, tc, u1) * (1. - .5 * flight); sz = mix(sz, ts, u1) * (1. - .4 * flight);
+  float lum = g4.w;
+  colour = mix(mix(vec3(.49, .66, .44), vec3(1., .97, .83), lum) * uGlobeBrightness,
+               mix(vec3(.68, .77, .61), vec3(1., .95, .79), h) * uBackgroundBrightness, morph);
+  float large = step(.965, r);
+  size = mix((.13 + .10 * h) * uWindSize * k4, mix(.10 + .18 * fract(r * 97.), .48 + .55 * h, large) * uWindSize, morph);
+  compact = uGlobeCompact * (1. - smoothstep(.20, .62, uDive)) * (1. - morph);
+  size *= mix(1., uGlobeCompactScale, compact);
+  angle = -.1 + sin(uTime * (.6 + h * .4) + h * TAU) * .20 * uFlutter + caught * sin(k * TAU) * .9 * morph - uCameraRoll;
+  float ahead = slot - uTravel, edge = abs(across) / hx * 12.;
+  float fog = smoothstep(-23., -12., ahead) * (1. - smoothstep(45., 79., ahead)) * (1. - smoothstep(8., 12., edge));
+  alpha = mix(.12 + .57 * lum, (.22 + .48 * h) * fog, morph);
+  plantMix = 0.;
+  kids = 1. - morph;
+
+  // ---- the light and the landing: most seeds leave on the breeze; their identities, once invisible, become the daisy.
+  // Three seeds ride along with you and settle on the soil, then fade (local 45-50%).
+  if (uLand > 0.) {
+    float Ls = uLand, role = aPlant.w;
+    vec3 windP = p; float windSize = size, windAngle = angle;
+    colour = mix(colour, colour * vec3(1.12, 1.02, .78), uWarm);
+    p.x -= smoothstep(.20, .48, Ls) * uFieldWidth * .32;
+    alpha *= 1. - smoothstep(.28, .40, Ls);
+    if (Ls >= .40 && role < .5) {
+      // every passing seed is invisible at this switch, so none is seen jumping to a bit of root or petal
+      float part = aLock.w, growth;
+      if (part < .5) growth = smoothstep(.18, .44, uGrowth);
+      else if (part < 1.5) growth = smoothstep(.33, .65, uGrowth);
+      else if (part < 2.5) growth = smoothstep(.45, .84, uGrowth);
+      else growth = smoothstep(.74, 1., uGrowth);
+      float reveal = smoothstep(aPlant.x - .08, aPlant.x + .08, growth) * smoothstep(0., .025, growth);
+      p = uLandO + aLock.xyz * uPlantScale + vec3(uPlantX, uGroundY, 0.);
+      float above = max(0., aLock.y);
+      p.x += sin(uTime * .7 + above * .5) * .025 * uSway * above * above * uPlantScale;   // still at the soil, freer up the stem
+      float tint = aPlant.z, dew = step(3.5, tint);
+      size = .060 * mix(.65, 1., step(1.5, part)) * uPlantScale / 7. * mix(1., 1.45, dew);
+      colour = part < .5 ? vec3(.46, .43, .28) : part < 1.5 ? vec3(.23, .47, .25) : part < 2.5 ? vec3(.30, .56, .30) : vec3(1., .65, .16);
+      if (part > 1.5) {
+        if (tint > .5 && tint < 1.5) colour = vec3(1., .96, .83);
+        else if (tint > 1.5 && tint < 2.5) colour = vec3(1., .66, .16);
+        else if (tint > 2.5 && tint < 3.5) colour = vec3(.56, .72, .39);
+        else if (dew > .5) colour = vec3(.85, 1., .91) * 1.35;
+      }
+      colour *= uPlantBrightness;
+      alpha = (part < 1.5 ? .38 : part < 2.5 ? .60 : .82) * reveal;
+      if (part < .5) alpha *= uShowRoots;
+      angle = 0.; plantMix = 1.; kids = 0.;
+    }
+    if (role > .5) {
+      float index = role - 1., K = uFieldHeight / 16.78;   // the study's view was 16.78 units tall
+      float ride = smoothstep(0., .20, Ls), land = smoothstep(.22 + index * .025, .40 + index * .025, Ls);
+      vec3 from = uFromBase + uCamR * (uFieldWidth * (.27 - index * .12) - sin(uTime * .19 + index) * .4 * K)
+                + uCamU * (uFieldHeight * (.17 + index * .065) + sin(uTime * .37 + index) * .23 * K) - uCamF * .4 * K;
+      float offset = index < .5 ? 0. : (index < 1.5 ? -.18 : .16) * uPlantScale * uLandingSpread;
+      vec3 soil = uLandO + vec3(uPlantX + offset, uGroundY + windSize * K * .16, .2 * K);
+      p = mix(mix(windP, from, ride), soil, land);
+      p.x += sin(land * 3.14159265) * (.8 + index * .2) * uLandingSpread * K;
+      p.y += sin(land * 3.14159265) * .30 * K;
+      size = mix(windSize, max(.4 * uWindSize, windSize) * K * mix(1.8, 1.1, land), ride);
+      angle = mix(windAngle, index < .5 ? .6 : -.45, land);   // the body tips as it reaches the ground
+      alpha = mix(alpha, .86, ride) * (1. - smoothstep(.45, .50, Ls));
+      plantMix = 0.; kids = 1.;
+    }
   }
 
-  // ---- padlock
-  if (u2 > 0.) {
-    vec3 lp;
-    vec3 lw = lockWorld(aLock, lp);
-    float g = aLock.w;
-    vec3 lc; float ls;
-    if (g < .1)       { lc = vec3(.80, .90, 1.) * .55; ls = .03; }
-    else if (g < .3)  { lc = vec3(.80, .90, 1.) * .5;  ls = .03; }
-    else if (g < .5)  { lc = vec3(.85, .95, 1.) * 1.25; ls = .05; }
-    else if (g < .7)  { lc = TEAL * 1.05; ls = .035; }
-    else if (g < .95) { lc = vec3(.6, 1., .85) * 1.4; ls = .045; }
-    else if (g < 1.5) { lc = vec3(.86, .92, 1.); ls = .045; }
-    else if (g < 2.5) { lc = vec3(1., .8, .48) * 1.35; ls = .045; }
-    else if (g < 3.5) { lc = mix(PURP, TEAL, hash) * .55; ls = .04; }
-    else              { lc = mix(PURP, TEAL, hash) * .3;  ls = .05; }
-    if (g < 2.5) {
-      float band = exp(-pow(lp.x * .7 + lp.y * .7 - uSheen, 2.) * 5.);
-      lc += vec3(.6, .8, 1.) * band * .55 + uLockFlash * .8;
-    }
-    // once it's open, the halo, the drifting shell and a share of the body burst out into a galaxy around the lock
-    if (uAfter > 0.) {
-      if (g > 2.5 || (g < 1.5 && hash < .4)) {
-        float ua = clamp(uAfter * 1.5 - fract(hash * 13.7) * .5, 0., 1.); ua = ua * ua * (3. - 2. * ua);
-        vec2 gxy = vec2(aScat.x - .5, aScat.y / .62);
-        float rr = length(gxy);
-        vec3 gp = vec3(gxy.x, (aScat.z + 2.) * .8, gxy.y) * .66;
-        gp.xz = rot2(uGalRot - rr * .05) * gp.xz;
-        gp.yz = rot2(-.78) * gp.yz;
-        gp += uV + vec3(0., .1, -1.2);
-        vec3 gc = mix(mix(TEAL, PURP, fract(hash * 7.3)), vec3(1., .74, .46), 1. - smoothstep(1.2, 4.2, rr));
-        gc *= .55 + .5 * fract(hash * 31.);
-        // the galaxy is seen from much further away than the lock, so its stars are drawn much bigger
-        float gs = (.13 + .12 * fract(hash * 17.)) * (fract(hash * 91.) < .03 ? 2.4 : 1.);
-        lw = mix(lw, gp, ua) + normalize(lw - uV + 1e-4) * sin(ua * 3.1416) * 1.6;
-        lc = mix(lc, gc, ua); ls = mix(ls, gs, ua);
-      } else lc *= mix(1., uLockDim, uAfter);
-    }
-    p = mix(p, lw, u2); col = mix(col, lc, u2); sz = mix(sz, ls, u2);
-  }
-
-  // ---- your touch: a gravity well under the pointer, ripples on tap
-  float wI = ((1. - u1) * ui + u2) * uInteract;
-  if (uMouse.w > .001 && wI > .001) {
+  // ---- a breath of air under the pointer
+  if (uMouse.w > .001 && uInteract > .001) {
     vec2 dm = p.xy - uMouse.xy; float dd = length(dm) + 1e-4;
-    float f = exp(-dd * dd / .1) * uMouse.w * wI;
-    p.xy += dm / dd * f * .12 + vec2(-dm.y, dm.x) / dd * f * .07;
-    p.z += f * .3; col += col * f * .55;
+    float f = exp(-dd * dd / (.4 * k4 + .3 * morph)) * uMouse.w * uInteract;
+    p.xy += vec2(-.6, .35) * f * .25 + dm / dd * f * .06;
+    angle += f * .35;
   }
-  if (uRipple.w >= 0. && wI > .001) {
-    float a = uRipple.w, dd = length(p.xy - uRipple.xy);
-    float wave = exp(-pow((dd - a * 3.6) / .3, 2.)) * exp(-a * 1.6) * wI;
-    p.z += wave * .45; p.xy += normalize(p.xy - uRipple.xy + 1e-4) * wave * .06; col += col * wave * 1.1;
-  }
+}
+`;
 
-  vec4 mv = modelViewMatrix * vec4(p, 1.);
-  float z = max(.05, -mv.z);
-  float tw = .82 + .36 * sin(uTime * 2.3 + hash * 6.2831);
-  gl_PointSize = min(sz * uSizeK * tw * uPxScale / z, uMaxPt);
-  vColor = col * (1. - smoothstep(uFogNear, uFogFar, z)) * smoothstep(.12, .6, z) * uOp;
+const SEED_VERT = POSE + /* glsl */`
+varying vec3 vColour;
+varying float vAngle, vAlpha, vCompact, vPlant;
+void main(){
+  vec3 p; float size, compact, plantMix, kids;
+  seedPose(p, size, vAngle, vColour, vAlpha, compact, plantMix, kids);
+  vec4 mv = modelViewMatrix * vec4(p, 1.); float depth = -mv.z;
+  gl_PointSize = min(uMaxPt, max(.8, size * uPxScale / max(.1, depth)));
   gl_Position = projectionMatrix * mv;
+  vAlpha *= smoothstep(.35, 1.1, depth) * uOp;
+  vCompact = compact; vPlant = plantMix;
 }`;
 
-const LAPTOP_VERT = /* glsl */`
-attribute vec4 aUvk;
-attribute vec3 aScat;
-uniform float uTime, uIntro, uOp, uSizeK, uPxScale, uMaxPt;
-varying vec3 vColor;
-float h(float n){ return fract(sin(n) * 43758.5453); }
+const SEED_FRAG = /* glsl */`
+uniform sampler2D uSeedAtlas;
+varying vec3 vColour;
+varying float vAngle, vAlpha, vCompact, vPlant;
 void main(){
-  float u = aUvk.x, v = aUvk.y, kind = aUvk.z, hs = aUvk.w;
-  float ui = clamp(uIntro * 1.45 - hs * .3 - .15, 0., 1.); ui = 1. - pow(1. - ui, 3.);
-  vec3 p = mix(aScat, position, ui);
-  vec3 col; float sz;
-  if (kind < .5) {
-    // live code scrolling up the screen
-    float yy = (1. - v) * 15. + uTime * .9, line = floor(yy), fr = fract(yy);
-    float indent = floor(h(line * 1.7) * 4.) * .055, len = .18 + .62 * h(line * 3.1);
-    float word = step(.16, fract(u * 6.5 + h(line) * 3.));
-    float on = step(.06 + indent, u) * step(u, .06 + indent + len) * step(.28, fr) * step(fr, .74) * word * (1. - step(.82, h(line * 5.3)));
-    float w = floor(u * 6.5);
-    vec3 syn = h(line * 2.3 + w) < .33 ? vec3(.55, 1., .82) : (h(line * 4.1 + w) < .5 ? vec3(.75, .7, 1.) : vec3(1., .82, .55));
-    col = mix(vec3(.22, .4, .6) * .55, syn * 2.1, on); sz = mix(.03, .042, on);
-  }
-  else if (kind < 1.5) { col = vec3(.62, .8, .95) * 1.3; sz = .04; }
-  else if (kind < 2.5) { col = vec3(.4, .5, .65) * .38; sz = .032; }
-  else if (kind < 3.5) { col = vec3(.55, .78, .9) * .95; sz = .034; }
-  else if (kind < 4.5) { col = vec3(.6, .82, .95) * 1.1; sz = .036; }
-  else if (kind < 5.5) { col = vec3(.62, .78, .95) * 1.2; sz = .04; }
-  else                 { col = vec3(.75, .92, 1.) * 1.6; sz = .045; }
-  vec4 mv = modelViewMatrix * vec4(p, 1.);
-  float z = max(.05, -mv.z);
-  gl_PointSize = min(sz * uSizeK * (.85 + .3 * sin(uTime * 2.1 + hs * 6.28)) * uPxScale / z, uMaxPt);
-  vColor = col * uOp * smoothstep(.12, .6, z);
-  gl_Position = projectionMatrix * mv;
+  vec2 q = gl_PointCoord - .5; float c = cos(vAngle), s = sin(vAngle);
+  vec2 uv = mat2(c, -s, s, c) * q + .5;
+  vec4 tex = vec4(0.);
+  if (uv.x >= 0. && uv.x <= 1. && uv.y >= 0. && uv.y <= 1.) tex = texture2D(uSeedAtlas, uv);
+  // on the globe the same seed shows a compact, bright hub; its tuft is still there, but quiet
+  float core = 1. - smoothstep(.025, .20, length(uv - vec2(.5, 222. / 512.)));
+  float seedA = mix(tex.a, max(tex.a * .65, core * .9), vCompact);
+  vec3 seedC = mix(tex.rgb * vColour, vColour * vec3(1., .98, .87), vCompact * core);
+  float dotA = max(0., 1. - dot(q, q) * 4.);
+  float alpha = mix(seedA, dotA, vPlant) * vAlpha;
+  if (alpha < .002) discard;
+  gl_FragColor = vec4(mix(seedC, vColour, vPlant), alpha);
+}`;
+
+const KID_VERT = POSE + /* glsl */`
+attribute vec2 aDotUV;
+varying vec3 vColour;
+varying float vAlpha;
+void main(){
+  vec3 p, colour; float size, angle, alpha, compact, plantMix, kids;
+  seedPose(p, size, angle, colour, alpha, compact, plantMix, kids);
+  vec4 mv = modelViewMatrix * vec4(p, 1.); float depth = -mv.z;
+  float px = min(uMaxPt, max(.8, size * uPxScale / max(.1, depth)));
+  float c = cos(angle), s = sin(angle);
+  vec2 screen = vec2(c * aDotUV.x - s * aDotUV.y, s * aDotUV.x + c * aDotUV.y);   // inverse of the atlas rotation
+  vec4 clip = projectionMatrix * mv;
+  clip.xy += vec2(screen.x, -screen.y) * px * 2. / uViewportPx * clip.w;
+  gl_Position = clip;
+  gl_PointSize = clamp(px * .14, .9 * uDpr, 2.2 * uDpr);
+  vColour = colour * uPointStrength;
+  vAlpha = alpha * .6 * kids * (1. - compact) * (1. - plantMix) * smoothstep(.35, 1.1, depth) * uOp;
+}`;
+
+const KID_FRAG = /* glsl */`
+varying vec3 vColour;
+varying float vAlpha;
+void main(){
+  float d = length(gl_PointCoord - .5) * 2.;
+  if (d > 1. || vAlpha < .001) discard;
+  gl_FragColor = vec4(vColour, vAlpha * (1. - d * d));
 }`;
 
 function additive(vertexShader, fragmentShader, uniforms) {
@@ -203,71 +233,64 @@ function additive(vertexShader, fragmentShader, uniforms) {
   });
 }
 
-export function createMainSystem(data, N, eye) {
+const ATTRS = [['position', 'pos', 3], ['aScat', 'scat', 4], ['aTun', 'tun', 4], ['aCoast', 'coast', 4], ['aLock', 'lock', 4], ['aPlant', 'plant', 4], ['aMisc', 'misc', 2]];
+
+export function createMainSystem(data, N, eye, atlas) {
+  const total = data.misc.length / 2;
   const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(data.pos, 3));
-  g.setAttribute('aScat', new THREE.BufferAttribute(data.scat, 4));
-  g.setAttribute('aTun', new THREE.BufferAttribute(data.tun, 4));
-  g.setAttribute('aLock', new THREE.BufferAttribute(data.lock, 4));
-  g.setAttribute('aMisc', new THREE.BufferAttribute(data.misc, 2));
+  for (const [name, key, w] of ATTRS) g.setAttribute(name, new THREE.BufferAttribute(data[key], w));
+  // the attached points: four per seed, parent-major, so any draw-range prefix pairs with the same seeds
+  const kg = new THREE.BufferGeometry(), K = POINTS_PER_SEED;
+  for (const [name, key, w] of ATTRS) {
+    const src = data[key], out = new Float32Array(total * K * w);
+    for (let i = 0; i < total; i++) for (let j = 0; j < K; j++) out.set(src.subarray(i * w, (i + 1) * w), (i * K + j) * w);
+    kg.setAttribute(name, new THREE.BufferAttribute(out, w));
+  }
+  const uv = new Float32Array(total * K * 2), anchors = atlas.userData.anchors;
+  for (let i = 0; i < total; i++) for (let j = 0; j < K; j++) uv.set(anchors[j], (i * K + j) * 2);
+  kg.setAttribute('aDotUV', new THREE.BufferAttribute(uv, 2));
+
   const u = {
-    uTime: { value: 0 }, uIntro: { value: 0 }, uIris: { value: 0 }, uT1: { value: 0 }, uT2: { value: 0 }, uLock: { value: 0 },
-    uOp: { value: 0 }, uSizeK: { value: 1 }, uPxScale: { value: 100 }, uMaxPt: { value: 64 },
-    uFogNear: { value: 30 }, uFogFar: { value: 60 }, uScreenGlow: { value: 1 }, uSheen: { value: -9 }, uFaceX: { value: -99 },
-    uLockFlash: { value: 0 }, uInteract: { value: 1 }, uSpin: { value: 0 }, uAfter: { value: 0 }, uGalRot: { value: 0 }, uLockDim: { value: 0.6 },
-    uEye: { value: eye.clone() }, uLt: { value: TUN.L }, uV: { value: new THREE.Vector3() },
-    uLockRot: { value: new THREE.Matrix3() }, uHaloRot: { value: new THREE.Matrix3() },
-    uMouse: { value: new THREE.Vector4(0, 0, 0, 0) }, uRipple: { value: new THREE.Vector4(0, 0, 0, -1) },
+    uSeedAtlas: { value: atlas }, uTime: { value: 12 }, uIntro: { value: 0 }, uDive: { value: 0 }, uTravel: { value: 0 },
+    uOp: { value: 0 }, uPxScale: { value: 100 }, uMaxPt: { value: 64 }, uDpr: { value: 1 },
+    uRadius: { value: 2.3 }, uAperture: { value: 1 }, uCoastMode: { value: 1 }, uGlobeCompact: { value: 1 }, uGlobeCompactScale: { value: 0.38 }, uGlobeBrightness: { value: 1.6 },
+    uWindSize: { value: 1 }, uFlutter: { value: 1 }, uLoops: { value: 1 }, uBackgroundBrightness: { value: 2.5 }, uPointStrength: { value: 0.3 },
+    uCameraRoll: { value: 0 }, uInteract: { value: 1 },
+    uFlightHalfExtent: { value: new THREE.Vector2(18, 18) }, uViewportPx: { value: new THREE.Vector2(1, 1) },
+    uMouse: { value: new THREE.Vector4(0, 0, 0, 0) },
+    uLand: { value: 0 }, uGrowth: { value: 0 }, uFieldWidth: { value: 30 }, uFieldHeight: { value: 17 }, uPlantX: { value: 0 }, uGroundY: { value: -2.7 },
+    uPlantScale: { value: 3.6 }, uPlantBrightness: { value: 1.2 }, uSway: { value: 1.1 }, uShowRoots: { value: 1 }, uWarm: { value: 0 }, uLandingSpread: { value: 1 },
+    uLandO: { value: new THREE.Vector3() }, uFromBase: { value: new THREE.Vector3() },
+    uCamR: { value: new THREE.Vector3(1, 0, 0) }, uCamU: { value: new THREE.Vector3(0, 1, 0) }, uCamF: { value: new THREE.Vector3(0, 0, -1) },
+    uEye: { value: eye.clone() }, uLt: { value: TUN.L },
   };
-  const pts = new THREE.Points(g, additive(MAIN_VERT, SPRITE_FRAG, u));
-  pts.frustumCulled = false;
-  pts.renderOrder = 10;
-  g.setDrawRange(0, N);
-  return { points: pts, uniforms: u, geometry: g, total: data.misc.length / 2 };
+  const seeds = new THREE.Points(g, additive(SEED_VERT, SEED_FRAG, u));
+  const kids = new THREE.Points(kg, additive(KID_VERT, KID_FRAG, u));
+  for (const o of [seeds, kids]) o.frustumCulled = false;
+  seeds.renderOrder = 10; kids.renderOrder = 11;
+  const sys = { points: seeds, kids, uniforms: u, geometry: g, total };
+  setSeedCount(sys, N);
+  return sys;
+}
+export function setSeedCount(sys, n) {
+  n = Math.max(0, Math.min(sys.total, Math.round(n)));
+  sys.count = n;
+  sys.geometry.setDrawRange(0, n);
+  sys.kids.geometry.setDrawRange(0, n * POINTS_PER_SEED);
 }
 
-export function createLaptop(data, N) {
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(data.pos, 3));
-  g.setAttribute('aUvk', new THREE.BufferAttribute(data.uvk, 4));
-  g.setAttribute('aScat', new THREE.BufferAttribute(data.scat, 3));
-  const u = { uTime: { value: 0 }, uIntro: { value: 0 }, uOp: { value: 0 }, uSizeK: { value: 1 }, uPxScale: { value: 100 }, uMaxPt: { value: 64 } };
-  const pts = new THREE.Points(g, additive(LAPTOP_VERT, SPRITE_FRAG, u));
-  pts.frustumCulled = false;
-  pts.renderOrder = 11;
-  g.setDrawRange(0, N);
-  // light spilling off the display
-  const tilt = (12 * Math.PI) / 180;
-  const glowU = { uOp: { value: 0 }, uTime: { value: 0 } };
-  const glow = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.7), new THREE.ShaderMaterial({
-    uniforms: glowU, transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending,
-    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`,
-    fragmentShader: `uniform float uOp, uTime; varying vec2 vUv;
-      void main(){ vec2 d = (vUv - .5) * vec2(1.4, 2.); float r = dot(d, d);
-        float f = exp(-r * 3.2) * (.9 + .1 * sin(uTime * 7.1) * sin(uTime * 2.3));
-        gl_FragColor = vec4(vec3(.35, .55, .9) * f * .32 * uOp, 1.); }`,
-  }));
-  glow.position.set(0, 0.475 * Math.cos(tilt) + 0.05 * Math.sin(tilt), -0.5 - 0.475 * Math.sin(tilt) + 0.12);
-  glow.rotation.x = -tilt;
-  glow.renderOrder = 9;
-  glow.frustumCulled = false;
-  const group = new THREE.Group();
-  group.add(glow, pts);
-  return { group, points: pts, uniforms: u, glowU, geometry: g, total: data.uvk.length / 4 };
-}
-
-// A soft dark silhouette just behind the subject so the bright sky can't wash it out.
-// For the globe it sits at the depth of the globe's rim, so it lines up with the outline as the camera moves.
-export function createOccluder(texture, meta, S0) {
+// A soft dark silhouette just behind the globe so the sky can't wash it out.
+// It sits at the depth of the globe's rim, so it lines up with the outline as the camera moves.
+export function createOccluder(texture, meta, S0, colour) {
   const sc = meta.scale * S0;
   const x0 = -meta.cx * sc, x1 = (meta.width - meta.cx) * sc;
   const y1 = meta.cy * sc, y0 = -(meta.height - meta.cy) * sc;
   const geo = new THREE.PlaneGeometry(x1 - x0, y1 - y0);
   const mat = new THREE.ShaderMaterial({
-    uniforms: { tMask: { value: texture }, uOp: { value: 0 } },
+    uniforms: { tMask: { value: texture }, uOp: { value: 0 }, uColour: { value: new THREE.Vector3(...colour) } },
     vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`,
-    fragmentShader: `uniform sampler2D tMask; uniform float uOp; varying vec2 vUv;
-      void main(){ float m = texture2D(tMask, vec2(vUv.x, 1. - vUv.y)).b; gl_FragColor = vec4(vec3(.012, .02, .04), m * uOp); }`,
+    fragmentShader: `uniform sampler2D tMask; uniform float uOp; uniform vec3 uColour; varying vec2 vUv;
+      void main(){ float m = texture2D(tMask, vec2(vUv.x, 1. - vUv.y)).b; gl_FragColor = vec4(uColour, m * uOp); }`,
     transparent: true, depthTest: false, depthWrite: false,
   });
   const mesh = new THREE.Mesh(geo, mat);
@@ -276,4 +299,26 @@ export function createOccluder(texture, meta, S0) {
   mesh.renderOrder = 5;
   mesh.frustumCulled = false;
   return mesh;
+}
+
+// The ground the daisy grows from: a soft band of soil below the soil line, drawn behind the seeds (so the roots show,
+// as in a cutaway) in screen colours that post.js's tone curve maps back onto.
+export function createGround(exposure) {
+  const u = { uOp: { value: 0 }, uExposure: { value: exposure } };
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.ShaderMaterial({
+    uniforms: u, transparent: true, depthTest: false, depthWrite: false,
+    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`,
+    fragmentShader: `uniform float uOp, uExposure; varying vec2 vUv;
+      vec3 untone(vec3 c){ return -log(max(vec3(1e-4), 1. - c)) / uExposure; }
+      void main(){
+        float t = 1. - vUv.y;   // 0 at the soil line, 1 at the bottom of the screen
+        vec3 c = mix(vec3(.278, .247, .161), vec3(.102, .149, .114), smoothstep(0., 1., t));
+        float a = mix(.11, .9, smoothstep(0., 1., t));
+        float line = exp(-pow(t * 220., 2.)) * .2;
+        gl_FragColor = vec4(untone(mix(c, vec3(.74, .71, .55), line / max(a + line, 1e-3))), (a + line) * uOp);
+      }`,
+  }));
+  mesh.renderOrder = 4;
+  mesh.frustumCulled = false;
+  return { mesh, u };
 }

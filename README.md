@@ -1,8 +1,9 @@
 # October portfolio
 
-Owen Lavender's portfolio: a one-page site where a globe drawn in stars, with Ottawa marked, turns into a flight
-as you scroll. The camera dives into Ottawa, flies a tunnel under About, Work and Highlights, passes through a sun,
-and opens a vault that the rest of the page scrolls over. English, French and German.
+Owen Lavender's portfolio ("Windborne"): a one-page site where a globe made of dandelion seeds, with Ottawa marked,
+turns into a flight as you scroll. The seeds part around Ottawa, the camera follows the wind through them under About,
+Work and Highlights, comes out into warm light where three seeds land, and an ivory daisy grows that the rest of the
+page scrolls over. English, French and German.
 
 Live at **https://olv02.github.io/october_portfolio/** once GitHub Pages is turned on (see below).
 
@@ -23,7 +24,8 @@ python3 tools/serve.py        # http://localhost:8642
 
 `serve.py` turns caching off and applies the security headers in `_headers`, so they're tested locally too.
 Useful URL flags: `?static` (the plain fallback page), `?lang=fr` / `?lang=de`, `?tier=low|med|high`,
-`?debug` (shows the quality tier), `?shot&p=0.5` (a still frame at that point in the flight, for screenshots).
+`?debug` (shows the quality tier), `?shot&p=0.5` (a still frame at that point in the flight, for screenshots),
+`?tune` (the hidden tuning panel: live sliders for every scene setting, with Copy/Export JSON).
 
 ## Where things are
 
@@ -34,7 +36,10 @@ Useful URL flags: `?static` (the plain fallback page), `?lang=fr` / `?lang=de`, 
 | Styles | `style.css` |
 | The flight (scroll → camera, every act) | `js/main.js` |
 | The globe image | `assets/globe.png`, built by `tools/build-globe.py` (writes `js/globe-meta.js` too) |
-| Stars → tunnel → vault | `js/build-data.js` (where each star goes) and `js/particles.js` (the shader) |
+| Seeds → wind → daisy | `js/build-data.js` (where each seed goes) and `js/particles.js` (seed atlas and shaders) |
+| Every tunable number | `js/config.js` (device profiles, globe, journey, landing, daisy); `?tune` edits a live copy |
+| The forest air | `js/sky.js`; palette tokens in `style.css` `:root`, read by `js/theme.js` |
+| Coastline weights | `assets/coast.png`, from the Windborne handoff (same projection as `globe.png`; no generator yet) |
 | Screen-size framing | `js/layout.js` |
 | Latest blog posts | `js/site.js` reads `https://olv02.github.io/rss.xml` (the Astro blog in `OLv02.github.io`) |
 | Sound | `js/audio.js` (synthesized, no audio files) |

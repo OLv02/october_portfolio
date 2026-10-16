@@ -1,16 +1,10 @@
 // Runs first, before anything else on the page.
 // The 3D flight needs WebGL and modern JavaScript. When either is missing, or the scene fails to start,
-// the page falls back to its plain version: the loader steps aside and the content sits on a quiet starfield.
+// the page falls back to its plain version: the loader steps aside and the content sits on a quiet forest green.
 // Without JavaScript at all, the stylesheet shows that plain version on its own.
 (function () {
   var root = document.documentElement;
   root.classList.add('js', 'locked');
-
-  // Web fonts load alongside the page instead of holding up its first paint (text swaps in when they arrive).
-  var fonts = document.createElement('link');
-  fonts.rel = 'stylesheet';
-  fonts.href = 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap';
-  document.head.appendChild(fonts);
 
   // Which language to open in: a ?lang= link, else the one the visitor picked before, else the first of their
   // device's languages that the site speaks, else English. js/i18n.js applies it; until then the text stays hidden

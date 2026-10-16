@@ -19,7 +19,7 @@ const ROWS = [
     'Owen Lavender, spécialiste de l’investissement direct étranger chez Investir Ottawa. Diplômé en commerce international de l’École de commerce Sprott de l’Université Carleton, il travaille en anglais, en français et en allemand.',
     'Owen Lavender, Spezialist für ausländische Direktinvestitionen bei Invest Ottawa. Absolvent in International Business der Sprott School of Business der Carleton University; arbeitet auf Englisch, Französisch und Deutsch.'],
   ['Skip to content', 'Aller au contenu', 'Zum Inhalt springen'],
-  ['Gathering {n} stars', 'Rassemblement de {n} étoiles', '{n} Sterne werden gesammelt'],
+  ['Gathering {n} seeds', 'Rassemblement de {n} graines', '{n} Samen werden gesammelt'],
   ['Look closer.', 'Regardez de plus près.', 'Sehen Sie genauer hin.'],
   ['Scroll to explore', 'Faites défiler pour explorer', 'Zum Erkunden scrollen'],
   ['Swipe to explore', 'Balayez pour explorer', 'Zum Erkunden wischen'],
@@ -222,7 +222,7 @@ const BLOCKS = {
 };
 
 // Strings that read the same in every language: names, programs, products, awards and contact details.
-const KEEP = new Set(['OL', 'Owen Lavender', 'Owen Lavender ·', 'OWEN', 'LAVENDER', 'Global Runway CRM', 'Microsoft Copilot', 'Excel', 'Microsoft 365',
+const KEEP = new Set(['OL', 'Owen Lavender', 'Owen Lavender ·', 'OWEN', 'LAVENDER', 'Owen', 'Lavender', 'Ottawa', '45.42° N · 75.70° W', 'Global Runway CRM', 'Microsoft Copilot', 'Excel', 'Microsoft 365',
   'OTTAWA · 2019 – 2025', 'OTTAWA · 2021', 'Universität Leipzig', 'Half Delegation of the Year', 'RSS', 'owen.lavender.02@gmail.com', 'in/owenlavender',
   'olv02.github.io/blog', 'LinkedIn', 'EN', 'FR', 'DE']);
 
