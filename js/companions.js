@@ -241,7 +241,7 @@ export function createCompanions(main, data, M) {
 
 // The scroll side: which section each half is showing, how far its object has assembled, and where its stage is.
 // sections: [{ name, half, slot, head }]. A section's local progress runs 0 → its rest pose over a short stretch of
-// scrolling while its stage is on screen: from the stage's centre at 95% of the viewport height to 70% (a quarter of a
+// scrolling while its stage is on screen: from the stage's centre at 95% of the viewport height to 45% (half a
 // screen), so you see the seeds fly in and the object build in the gap before its section without it taking long.
 // Reversible, no timers. Reduced motion shows the rest pose without the gathering.
 const _c = new THREE.Vector3();
@@ -249,7 +249,7 @@ export function updateCompanions(sys, sections, { camera, W, H, reduced, tune })
   const u = sys.uniforms, vh = innerHeight;
   const state = sections.map((s) => {
     const slot = s.slot.getBoundingClientRect();
-    const mid = slot.top + slot.height / 2, ramp = Math.min(1, Math.max(0, (0.95 * vh - mid) / (0.25 * vh)));
+    const mid = slot.top + slot.height / 2, ramp = Math.min(1, Math.max(0, (0.95 * vh - mid) / (0.5 * vh)));
     const on = slot.bottom > -0.05 * vh && slot.top < 1.05 * vh && slot.width > 0;
     return { s, slot, ramp, on, weight: on ? (reduced ? 1 : ramp) : 0 };
   });
