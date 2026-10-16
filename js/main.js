@@ -94,7 +94,10 @@ let beats = [[0, 0], [1, 1]];
 const docTop = (el) => el.getBoundingClientRect().top + scrollY;
 function computeBeats() {
   const vh = innerHeight, fTop = docTop(flightEl), fEnd = fTop + flightEl.offsetHeight;
-  const k = [[0, 0], [0.25 * vh, 0.05], [fTop - 0.62 * vh, 0.22], [fEnd - 0.35 * vh, 0.66], [docTop(vaultBeat) - 0.1 * vh, 0.72], [docTop(afterEl) - 0.82 * vh, 1]];
+  // Content first, animation as the embellishment: the name holds only briefly, About starts rising as soon as it fades
+  // and the opening plays behind it (finishing with About's heading about 40% down the screen); Let's talk likewise
+  // arrives while the daisy is still opening.
+  const k = [[0, 0], [0.12 * vh, 0.05], [fTop - 0.35 * vh, 0.22], [fEnd - 0.35 * vh, 0.66], [docTop(vaultBeat) - 0.1 * vh, 0.72], [docTop(afterEl) - 0.82 * vh, 1]];
   for (let i = 1; i < k.length; i++) k[i][0] = Math.max(k[i][0], k[i - 1][0] + 1);
   beats = k;
 }

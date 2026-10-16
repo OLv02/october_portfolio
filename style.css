@@ -155,7 +155,7 @@ html.reading .chrome::before { opacity: 1; }
 html.menu-open, html.menu-open body { overflow: hidden; }
 
 /* ---------- hero (phone: face up top, name below) ---------- */
-#journey { height: calc(var(--vhs) * 1.45); position: relative; }
+#journey { height: calc(var(--vhs) * 0.9); position: relative; }
 /* Ottawa's name, placed on its mark by main.js */
 .geo-label { position: fixed; z-index: 2; left: 0; top: 0; margin: -7px 0 0 12px; pointer-events: none; visibility: hidden; opacity: 0; white-space: nowrap;
   font: 500 10.5px var(--mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink); text-shadow: 0 1px 8px rgba(var(--black-rgb), 0.9); }
@@ -210,8 +210,8 @@ html.menu-open, html.menu-open body { overflow: hidden; }
 }
 #after { padding-bottom: calc(6vh + var(--safe-b)); }
 /* the two short beats before Let's talk where the flight has the screen to itself: the warm light and landings, then the daisy grows */
-.beat { height: calc(var(--vhs) * 0.45); }
-.beat-vault { height: calc(var(--vhs) * 0.95); }
+.beat { height: calc(var(--vhs) * 0.25); }
+.beat-vault { height: calc(var(--vhs) * 0.6); }
 
 /* Each section rises into place as it arrives and settles back as it leaves. site.js sets --in (0 → 1) and
    --out (0 → 1) from the scroll position; 2D transforms only, so the frosted cards keep their blur everywhere. */
