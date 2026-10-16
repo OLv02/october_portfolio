@@ -442,14 +442,21 @@ function update(dt) {
     const w = 0.42 * (1 - dive) * parK;
     camPos.x += par.x * w; camPos.y += par.y * w * 0.6;
   } else if (pS < 0.72) {
-    sCam = pS < 0.66 ? -0.32 + tun * (L + 0.32) : L + sunA * 26;
+    // The opening's camera eases to a stop at the hand-off, so the journey starts from rest and picks up speed over its
+    // first 5% (velocity is continuous) instead of lurching to full speed; it still reaches the same point at 0.66.
+    const tA = 0.05, tunE = (tun < tA ? (tun * tun) / (2 * tA) : tun - tA / 2) / (1 - tA / 2);
+    sCam = pS < 0.66 ? -0.32 + tunE * (L + 0.32) : L + sunA * 26;
     if (sCam <= L) pathPos(eye, Math.max(0, sCam), camPos); else camPos.set(eye.x, eye.y, eye.z - sCam);
     if (sCam < 0) camPos.set(eye.x, eye.y, eye.z - sCam);
     const sT = sCam + 9;
     if (sT <= L) pathPos(eye, sT, camTgt); else camTgt.set(eye.x, eye.y, eye.z - sT);
+    // The opening ends looking straight ahead; the path's look-ahead starts about 8° off that. Ease from one to the
+    // other over the first stretch of the journey instead of snapping at the hand-off (it read as a skip in the scroll).
+    const join = ease(seg(sCam, -0.32, 12));
+    if (join < 1) { tmp2.set(camPos.x, camPos.y, camPos.z - 9); camTgt.lerpVectors(tmp2, camTgt, join); }
     bank = REDUCED || !tune.globe.bank ? 0 : 0.3 * pathBank(eye, Math.max(0, Math.min(L, sCam))) * seg(sCam, 2, 20);
     fov = 64 + (REDUCED ? 0 : Math.min(9, spd * 6));
-    camPos.x += par.x * 0.22 * parK; camPos.y += par.y * 0.14 * parK;
+    camPos.x += par.x * 0.22 * parK * join; camPos.y += par.y * 0.14 * parK * join;   // parallax eases in with the join too
   } else {
     // come out of the light and slow to rest in front of the plant
     const LF = layout.land;
