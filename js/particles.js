@@ -42,6 +42,28 @@ export function createSeedAtlas(random) {
   return tex;
 }
 
+// ---------- the wind, shared by the seeds and the section companions (js/companions.js) ----------
+// Needs aTun = [slot 0..105, box x, box y, random], uTime, uTravel, uFlightHalfExtent, uFlutter, uLoops, PATH_GLSL and TAU.
+export const WIND_GLSL = /* glsl */`
+// stable depth slots along the flight path, recycled around the camera, in a box that fills the screen
+vec3 windAt(float h, out float slot, out float across, out float k, out float caught){
+  slot = mod(aTun.x - uTime * .18 - uTravel + 24., 105.) + uTravel - 24.;
+  vec3 P, N, B; pathFrame(slot, P, N, B);
+  float hx = uFlightHalfExtent.x, hy = uFlightHalfExtent.y;
+  across = mod(aTun.y * 2. * hx - uTime * (.45 + .55 * h) + hx, 2. * hx) - hx;
+  float vertical = aTun.z * 2. * hy + sin(uTime * .45 + h * 15.) * .25 * uFlutter;
+  vec3 wind = P + N * across + B * vertical;
+  // now and then a seed is caught by a gust and turns a loop that travels with it
+  float cyc = fract(uTime * .027 + h * 7.3);
+  k = clamp((cyc - .28) / .24, 0., 1.); caught = step(.82, fract(h * 23.71)) * uLoops;
+  return wind + N * sin(k * TAU) * .75 * caught + B * (1. - cos(k * TAU)) * .6 * caught;
+}
+// how the free wind seed fades: behind the camera, far ahead, and at the box's side edges
+float windFog(float slot, float across){
+  float ahead = slot - uTravel, edge = abs(across) / uFlightHalfExtent.x * 12.;
+  return smoothstep(-23., -12., ahead) * (1. - smoothstep(45., 79., ahead)) * (1. - smoothstep(8., 12., edge));
+}`;
+
 // ---------- one pose for both the seeds and their attached points ----------
 const POSE = /* glsl */`
 attribute vec4 aScat, aTun, aCoast, aLock, aPlant;
@@ -58,6 +80,8 @@ uniform vec3 uLandO, uFromBase, uCamR, uCamU, uCamF;
 ${PATH_GLSL}
 const float TAU = 6.2831853;
 const vec2 HUB = vec2(0., 222. / 512. - .5);
+
+${WIND_GLSL}
 
 // p, sprite size (world), angle, colour, alpha; compact = globe sprite mode; plantMix = drawn as a round plant point;
 // kids = how visible the attached filament points are
@@ -82,15 +106,8 @@ void seedPose(out vec3 p, out float size, out float angle, out vec3 colour, out 
   // ---- the wind: stable depth slots along the flight path, recycled around the camera, in a box that fills the screen
   float outer = clamp(dist / (R * 2.), 0., 1.);
   float morph = smoothstep(.44 + .12 * (1. - outer), .70 + .12 * (1. - outer), uDive);
-  float slot = mod(aTun.x - uTime * .18 - uTravel + 24., 105.) + uTravel - 24.;
-  vec3 P, N, B; pathFrame(slot, P, N, B);
-  float hx = uFlightHalfExtent.x, hy = uFlightHalfExtent.y;
-  float across = mod(aTun.y * 2. * hx - uTime * (.45 + .55 * h) + hx, 2. * hx) - hx;
-  float vertical = aTun.z * 2. * hy + sin(uTime * .45 + h * 15.) * .25 * uFlutter;
-  vec3 wind = P + N * across + B * vertical;
-  // now and then a seed is caught by a gust and turns a loop that travels with it
-  float cyc = fract(uTime * .027 + h * 7.3), k = clamp((cyc - .28) / .24, 0., 1.), caught = step(.82, fract(h * 23.71)) * uLoops;
-  wind += N * sin(k * TAU) * .75 * caught + B * (1. - cos(k * TAU)) * .6 * caught;
+  float slot, across, k, caught, hx = uFlightHalfExtent.x;
+  vec3 wind = windAt(h, slot, across, k, caught);
   // Blown opening, one breath from the right, streamlined from dandelion research (Shields et al. 2025; Cummins et
   // al. 2018). Seeds facing the breath and on the rim let go first; the far (left) side holds on longest, so a clump
   // around Ottawa lingers, then follows on a gentler tail of the breath. Seeds are so light they
@@ -201,7 +218,7 @@ void main(){
   vCompact = compact; vPlant = plantMix;
 }`;
 
-const SEED_FRAG = /* glsl */`
+export const SEED_FRAG = /* glsl */`
 uniform sampler2D uSeedAtlas;
 varying vec3 vColour;
 varying float vAngle, vAlpha, vCompact, vPlant;
@@ -239,7 +256,7 @@ void main(){
   vAlpha = alpha * .6 * kids * (1. - compact) * (1. - plantMix) * smoothstep(.35, 1.1, depth) * uOp;
 }`;
 
-const KID_FRAG = /* glsl */`
+export const KID_FRAG = /* glsl */`
 varying vec3 vColour;
 varying float vAlpha;
 void main(){

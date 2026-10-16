@@ -55,7 +55,20 @@ export const CONFIG = {
   render: {                     // proposed: compensation for this engine's tone curve and bloom, which the proof didn't have
     globeGain: 1.5,             // extra gain on the globe's seeds
     occluder: 0.55,             // how strongly the soft disc behind the globe hides the canopy light
+    companionGain: 1.3,         // extra gain on the formed companions, for the same tone curve (their own brightness stays as approved)
   },
+  // The section companions (approved objects and settings from the through-fern package). Each is built from a shared
+  // companion population of perHalf × 2 parents; size scales the object on its stage (.companion-slot in style.css).
+  companions: {
+    perHalf: 3600,              // parents per half of the shared population, as dense as the proof pages (3,600)
+    bridge: { brightness: 1.2, size: 1 },                 // Work: Little bridge, 60% span, four posts a side, no heart
+    seedling: { brightness: 0.9, size: 0.85, light: 1.8 },// Highlights: spotlit seedling, rest pose .82
+    compass: { brightness: 1.2, size: 0.7 },              // Leadership: tabletop compass
+    quill: { brightness: 0.5, size: 0.85 },               // Writing: quill with one ink trail
+    fern: { brightness: 0.8, size: 0.85 },                // Education: unfurling fern
+  },
+  // after the flight the daisy steps back so the companions can stand beside the text (provisional composition)
+  after: { pullBack: 0.5, shiftRight: 0.2, shiftDown: 0.12 },
   // the light and landing sequence runs over this part of the page's flight progress
   segments: { dive: [0.05, 0.25], landing: [0.66, 1] },
 };
@@ -70,6 +83,9 @@ export const RANGES = {
   'globe.brightness': [0.3, 8, 0.1], 'globe.aperture': [0, 2, 0.1], 'globe.blowDive': [0, 1, 0.05], 'globe.compactScale': [0.25, 0.7, 0.01],
   'plant.brightness': [0.3, 3, 0.1], 'plant.sway': [0, 2, 0.05], 'plant.scale': [2, 6, 0.1],
   'landing.light': [0, 2, 0.05], 'landing.spread': [0.25, 2, 0.05], 'landing.plantRight': [0, 0.3, 0.01],
-  'render.globeGain': [0.5, 4, 0.05], 'render.occluder': [0, 1, 0.05],
+  'companions.bridge.size': [0.3, 2, 0.05], 'companions.seedling.size': [0.3, 2, 0.05], 'companions.seedling.light': [0, 4, 0.1],
+  'companions.compass.size': [0.3, 2, 0.05], 'companions.quill.size': [0.3, 2, 0.05], 'companions.fern.size': [0.3, 2, 0.05],
+  'after.pullBack': [0, 1.5, 0.05], 'after.shiftRight': [-0.3, 0.4, 0.01], 'after.shiftDown': [-0.2, 0.4, 0.01],
+  'render.globeGain': [0.5, 4, 0.05], 'render.occluder': [0, 1, 0.05], 'render.companionGain': [0.5, 3, 0.05],
   'flight.halfHeight': [8, 30, 0.5], 'flight.minHalfWidth': [6, 20, 0.5], 'flight.motionEase': [0.02, 0.5, 0.01],
 };

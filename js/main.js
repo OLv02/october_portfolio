@@ -7,6 +7,7 @@ import { TUN, pathPos, pathBank } from './path.js';
 import { TIERS, detectDevice, AdaptiveQuality } from './quality.js';
 import { mulberry32, buildMain, buildPlant, PLANT_VARIANTS } from './build-data.js';
 import { createMainSystem, createOccluder, createSeedAtlas, setSeedCount, createGround } from './particles.js';
+import { createCompanions, updateCompanions } from './companions.js';
 import { Sky } from './sky.js';
 import { Post } from './post.js';
 import { Sound } from './audio.js';
@@ -74,7 +75,11 @@ const sound = new Sound();
 // the device lab passes the safe-area insets a real phone would report
 if (EMBED && Q.get('safe')) Q.get('safe').split(',').forEach((v, i) => document.documentElement.style.setProperty(['--safe-t', '--safe-r', '--safe-b', '--safe-l'][i], (+v || 0) + 'px'));
 
-let mainSys = null, occluder = null;
+let mainSys = null, occluder = null, companions = null;
+// each section companion's stage (.companion-slot) and heading; the two halves of the companion population alternate
+const COMPANION_SECTIONS = [['work', 'bridge', 0], ['highlights', 'seedling', 1], ['leadership', 'compass', 0], ['writing', 'quill', 1], ['education', 'fern', 0]]
+  .map(([id, name, half]) => { const sec = $(id); return sec && { name, half, slot: sec.querySelector('.companion-slot'), head: sec.querySelector('.sec-head') }; })
+  .filter((s) => s && s.slot && s.head);
 // The live copy of the settings: the committed defaults from config.js, plus the device profile's seed look
 const tune = { ...structuredClone(CONFIG), profileName: profileFor({ phone: device.phone, width: innerWidth }) };
 Object.assign(tune, { profile: { ...PROFILES[tune.profileName] } });
@@ -257,6 +262,10 @@ let ready = false;
     const tex = new THREE.CanvasTexture(pix.canvas); tex.flipY = false; tex.generateMipmaps = false; tex.minFilter = THREE.LinearFilter;
     occluder = createOccluder(tex, GLOBE, S0, THEME.forest.map((c) => (-Math.log(1 - c) / post.u.uExposure.value) * 0.6));
     scene.add(mainSys.points, mainSys.kids, occluder);
+    // the section companions borrow the tail of the same seed universe (identities the main system doesn't draw)
+    companions = createCompanions(mainSys, data.main, tune.companions.perHalf);
+    companions.uniforms.uTitleBrightness.value = tune.look.titleBrightness;
+    scene.add(companions.points, companions.kids, companions.light);
     if (Q.has('tune')) rebuildPlant();   // a remembered ?tune variant may have arrived after the worker started
     applyTier(tier);
     progress(1);
@@ -385,13 +394,15 @@ const cues = { chime: false };
 const camPos = new THREE.Vector3(), camTgt = new THREE.Vector3(), tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
 const fwd = new THREE.Vector3(), upV = new THREE.Vector3(), par = new THREE.Vector2();
 const look = { tint: new THREE.Vector3(1, 1, 1), sky: 1, dust: 1 };
-const shot = { p: +(Q.get('p') || 0), x: +(Q.get('x') || 0), t: +(Q.get('t') || 12), intro: +(Q.get('intro') ?? 1) };
+// ?shot&sec=work&y=.4 puts that section's heading at 40% of the screen height (for companion stills) instead of using p/x
+const shot = { p: +(Q.get('p') || 0), x: +(Q.get('x') || 0), t: +(Q.get('t') || 12), intro: +(Q.get('intro') ?? 1), sec: Q.get('sec'), y: +(Q.get('y') ?? 0.4) };
 
 
 function update(dt) {
   // --- progress
   let { p, ex } = progressAt(window.scrollY);
-  if (SHOT) { p = shot.p; ex = shot.x; pS = p; extra = ex; }
+  if (SHOT && !shot.sec) { p = shot.p; ex = shot.x; }
+  if (SHOT) { pS = p; extra = ex; }
   else { const k = 1 - Math.exp(-dt * (lenis ? 11 : 7)); pS += (p - pS) * k; extra += (ex - extra) * k; }
   if (!isFinite(pS)) pS = p;
 
@@ -469,6 +480,13 @@ function update(dt) {
     // afterwards a slow breath of a drift while the rest of the page scrolls over the daisy
     const drift = REDUCED ? 0 : afterK;
     camPos.x += Math.sin(T * 0.11) * 0.12 * drift; camPos.y += (Math.sin(T * 0.07) * 0.08 + 0.15 * Math.sin(extra * 0.6)) * drift;
+    // Once the rest of the page starts (Leadership on), the daisy steps back, lower and to the right, so it stays rooted
+    // behind the text while each section's companion stands beside its heading. Provisional composition, for review.
+    const back = ease(clamp01(extra * 3)), A = tune.after;
+    if (back > 0) {
+      tmp.set(-LF.fieldW * A.shiftRight * back, LF.fieldH * A.shiftDown * back, 0);
+      camPos.add(tmp); camTgt.add(tmp); camPos.z += LF.dist * A.pullBack * back;
+    }
     const w = 0.25 * seg(pS, 0.75, 0.8) * parK;
     camPos.x += par.x * w; camPos.y += par.y * w * 0.6;
   }
@@ -478,6 +496,7 @@ function update(dt) {
   camera.lookAt(camTgt);
   camera.fov = fov;
   camera.updateProjectionMatrix();
+  if (companions && entered) updateCompanions(companions, COMPANION_SECTIONS, { camera, W, H, reduced: REDUCED, tune });
 
   const camSpeed = dt > 0 ? camPos.distanceTo(prevCam) / dt : 0;
   prevCam.copy(camPos);
@@ -613,7 +632,11 @@ function loop(now) {
 requestAnimationFrame(loop);
 if (SHOT) {
   // put the page where the shot is, so the DOM layer matches the 3D layer
-  const place = () => { computeBeats(); window.scrollTo(0, scrollFor(shot.p, shot.x)); };
+  const place = () => {
+    computeBeats();
+    const head = shot.sec && document.querySelector('#' + CSS.escape(shot.sec) + ' .sec-head');
+    window.scrollTo(0, head ? layoutTop(head) - shot.y * innerHeight : scrollFor(shot.p, shot.x));
+  };
   if (!Q.has('gate')) document.documentElement.classList.remove('locked');
   addEventListener('load', place); setTimeout(place, 50);
 }
@@ -627,4 +650,4 @@ function seek(p, ex = 0) {
   scrollTo(0, y);
   return y;
 }
-window.__v8 = { get state() { return { pS, extra, T, tier: tier.name, entered, ready, W, H, dpr }; }, raw: rawProgress, seek, pause: (b) => { paused = !!b; }, setDprCap: (c) => { dprCap = c || 9; resize(true); }, camera, renderer, post, layout: () => layout, applyTier, TIERS, sound, sky, scene, tune, seeds: () => mainSys };
+window.__v8 = { get state() { return { pS, extra, T, tier: tier.name, entered, ready, W, H, dpr }; }, raw: rawProgress, seek, pause: (b) => { paused = !!b; }, setDprCap: (c) => { dprCap = c || 9; resize(true); }, camera, renderer, post, layout: () => layout, applyTier, TIERS, sound, sky, scene, tune, seeds: () => mainSys, companions: () => companions };

@@ -26,7 +26,8 @@ python3 tools/serve.py        # http://localhost:8642
 `serve.py` turns caching off and applies the security headers in `_headers`, so they're tested locally too.
 Useful URL flags: `?static` (the plain fallback page), `?lang=fr` / `?lang=de`, `?tier=low|med|high`,
 `?debug` (shows the quality tier), `?shot&p=0.5` (a still frame at that point in the flight, for screenshots),
-`?tune` (the hidden tuning panel: live sliders for every scene setting, with Copy/Export JSON).
+`?tune` (the hidden tuning panel: live sliders for every scene setting, with Copy/Export JSON),
+`?shot&sec=writing&y=.4` (a still with that section's heading at 40% of the screen, for the companions).
 
 ## Where things are
 
@@ -38,6 +39,7 @@ Useful URL flags: `?static` (the plain fallback page), `?lang=fr` / `?lang=de`, 
 | The flight (scroll → camera, every act) | `js/main.js` |
 | The globe image | `assets/globe.png`, built by `tools/build-globe.py` (writes `js/globe-meta.js` too) |
 | Seeds → wind → daisy | `js/build-data.js` (where each seed goes) and `js/particles.js` (seed atlas and shaders) |
+| Section companions (Work bridge, Highlights seedling, Leadership compass, Writing quill, Education fern) | `js/companion-data.js` (shapes, ported from the proof), `js/companions.js` (shared population, shaders, scroll), `.companion-slot` in `index.html`/`style.css` |
 | Every tunable number | `js/config.js` (device profiles, globe, journey, landing, daisy); `?tune` edits a live copy |
 | The forest air | `js/sky.js`; palette tokens in `style.css` `:root`, read by `js/theme.js` |
 | Coastline weights | `assets/coast.png`, from the Windborne handoff (same projection as `globe.png`; no generator yet) |
