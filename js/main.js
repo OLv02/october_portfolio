@@ -5,7 +5,7 @@ import * as THREE from './vendor/three.module.min.js';
 import Lenis from './vendor/lenis.mjs';
 import { TUN, pathPos, pathBank } from './path.js';
 import { TIERS, detectDevice, AdaptiveQuality } from './quality.js';
-import { mulberry32, buildMain } from './build-data.js';
+import { mulberry32, buildMain, buildPlant, PLANT_VARIANTS } from './build-data.js';
 import { createMainSystem, createOccluder, createSeedAtlas, setSeedCount, createGround } from './particles.js';
 import { Sky } from './sky.js';
 import { Post } from './post.js';
@@ -144,6 +144,23 @@ function applyTier(t) {
 }
 const aq = new AdaptiveQuality(device, applyTier);
 
+// Rebuild the daisy targets for another variant (?tune only), for the seeds and their attached points together
+function rebuildPlant() {
+  if (!mainSys) return;
+  const g = mainSys.geometry, n = mainSys.total, K = mainSys.kids.geometry.attributes.aLock.count / n;
+  const lock = g.attributes.aLock.array, plant = g.attributes.aPlant.array;
+  const roles = Float32Array.from({ length: n }, (_, i) => plant[i * 4 + 3]);
+  buildPlant(n, lock, plant, tune.plant.variant);
+  for (let i = 0; i < n; i++) plant[i * 4 + 3] = roles[i];
+  for (const [geo, src] of [[g, null], [mainSys.kids.geometry, true]]) {
+    if (src) for (const [name, arr] of [['aLock', lock], ['aPlant', plant]]) {
+      const out = geo.attributes[name].array;
+      for (let i = 0; i < n; i++) for (let j = 0; j < K; j++) out.set(arr.subarray(i * 4, i * 4 + 4), (i * K + j) * 4);
+    }
+    geo.attributes.aLock.needsUpdate = true; geo.attributes.aPlant.needsUpdate = true;
+  }
+}
+
 // ?tune opens the hidden tuning panel (js/tune.js): live sliders for every setting in config.js
 if (Q.has('tune')) {
   import('./tune.js').then(({ initTune }) => {
@@ -151,9 +168,9 @@ if (Q.has('tune')) {
     initTune(tune, {
       info: () => `${tune.profileName} profile · ${mainSys ? mainSys.count : 0} of ${tune.structure.capacity} seeds drawn (${tier.name} tier caps at ${TIER_SEEDS[tier.name]}) · ` +
         `DPR ${dpr} · point cap ${Math.min(64 * dpr, maxPointHW)}px · linear output, colour management off`,
-      onCount: recount, onLayout: () => resize(true),
+      onCount: recount, onLayout: () => resize(true), onPlant: rebuildPlant,
     });
-    recount(); resize(true);
+    recount(); rebuildPlant(); resize(true);
   }).catch((e) => console.error(e));
 }
 
@@ -216,7 +233,7 @@ async function loadGlobe() {
 }
 
 function buildData(pix, coast) {
-  const args = { pixels: pix.pixels, coast, w: pix.w, h: pix.h, meta: GLOBE, N: tune.structure.capacity, S0, coastShare: tune.globe.coastShare, roles: tune.landing.roles };
+  const args = { pixels: pix.pixels, coast, w: pix.w, h: pix.h, meta: GLOBE, N: tune.structure.capacity, S0, coastShare: tune.globe.coastShare, roles: tune.landing.roles, variant: tune.plant.variant };
   const inline = () => ({ main: buildMain(args) });
   if (SHOT || !window.Worker) return Promise.resolve(inline());
   return new Promise((resolve) => {
@@ -240,6 +257,7 @@ let ready = false;
     const tex = new THREE.CanvasTexture(pix.canvas); tex.flipY = false; tex.generateMipmaps = false; tex.minFilter = THREE.LinearFilter;
     occluder = createOccluder(tex, GLOBE, S0, THEME.forest.map((c) => (-Math.log(1 - c) / post.u.uExposure.value) * 0.6));
     scene.add(mainSys.points, mainSys.kids, occluder);
+    if (Q.has('tune')) rebuildPlant();   // a remembered ?tune variant may have arrived after the worker started
     applyTier(tier);
     progress(1);
     ready = true;
@@ -491,6 +509,7 @@ function update(dt) {
     U.uFieldWidth.value = LF.fieldW; U.uFieldHeight.value = LF.fieldH; U.uPlantX.value = LF.plantX; U.uGroundY.value = LF.groundY;
     U.uPlantScale.value = LF.scale; U.uLandO.value.copy(LF.origin);
     U.uPlantBrightness.value = tune.plant.brightness; U.uSway.value = tune.plant.sway; U.uShowRoots.value = tune.plant.showRoots ? 1 : 0;
+    U.uLeafGain.value = (PLANT_VARIANTS[tune.plant.variant] || PLANT_VARIANTS.pair).leafGain;
     U.uWarm.value = Math.min(1, (lightK + afterK * 0.18) * Lk.light); U.uLandingSpread.value = Lk.spread;
     U.uMouse.value.set(pointer.world.x, pointer.world.y, pointer.world.z, pointer.strength);
   }

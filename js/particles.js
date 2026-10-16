@@ -52,7 +52,7 @@ uniform float uWindSize, uFlutter, uLoops, uBackgroundBrightness, uPointStrength
 uniform vec2 uFlightHalfExtent, uViewportPx;
 uniform vec4 uMouse;
 // the light and the landing (local sequence 0..1) and the daisy's growth
-uniform float uLand, uGrowth, uFieldWidth, uFieldHeight, uPlantX, uGroundY, uPlantScale, uPlantBrightness, uSway, uShowRoots, uWarm, uLandingSpread;
+uniform float uLand, uGrowth, uFieldWidth, uFieldHeight, uPlantX, uGroundY, uPlantScale, uPlantBrightness, uSway, uShowRoots, uLeafGain, uWarm, uLandingSpread;
 uniform vec3 uLandO, uFromBase, uCamR, uCamU, uCamF;
 ${PATH_GLSL}
 const float TAU = 6.2831853;
@@ -137,6 +137,7 @@ void seedPose(out vec3 p, out float size, out float angle, out vec3 colour, out 
       colour *= uPlantBrightness;
       alpha = (part < 1.5 ? .38 : part < 2.5 ? .60 : .82) * reveal;
       if (part < .5) alpha *= uShowRoots;
+      if (part > 1.5 && part < 2.5) alpha *= uLeafGain;   // the pair carries all the foliage points, so each is fainter
       angle = 0.; plantMix = 1.; kids = 0.;
     }
     if (role > .5) {
@@ -259,7 +260,7 @@ export function createMainSystem(data, N, eye, atlas) {
     uFlightHalfExtent: { value: new THREE.Vector2(18, 18) }, uViewportPx: { value: new THREE.Vector2(1, 1) },
     uMouse: { value: new THREE.Vector4(0, 0, 0, 0) },
     uLand: { value: 0 }, uGrowth: { value: 0 }, uFieldWidth: { value: 30 }, uFieldHeight: { value: 17 }, uPlantX: { value: 0 }, uGroundY: { value: -2.7 },
-    uPlantScale: { value: 3.6 }, uPlantBrightness: { value: 1.2 }, uSway: { value: 1.1 }, uShowRoots: { value: 1 }, uWarm: { value: 0 }, uLandingSpread: { value: 1 },
+    uPlantScale: { value: 3.6 }, uPlantBrightness: { value: 1.2 }, uSway: { value: 1.1 }, uShowRoots: { value: 1 }, uLeafGain: { value: 1 / 3 }, uWarm: { value: 0 }, uLandingSpread: { value: 1 },
     uLandO: { value: new THREE.Vector3() }, uFromBase: { value: new THREE.Vector3() },
     uCamR: { value: new THREE.Vector3(1, 0, 0) }, uCamU: { value: new THREE.Vector3(0, 1, 0) }, uCamF: { value: new THREE.Vector3(0, 0, -1) },
     uEye: { value: eye.clone() }, uLt: { value: TUN.L },
