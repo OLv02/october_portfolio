@@ -9,7 +9,7 @@ Live at **https://olv02.github.io/october_portfolio/** once GitHub Pages is turn
 
 ## Credit
 
-The site code is adapted from [Armaan Sidhu's](https://realarmaansidhu.com/) personal site, used with permission.
+Based on [Armaan Sidhu's site](https://realarmaansidhu.com/), used with permission.
 The globe, content, languages and blog feed are new. Libraries: [three.js](https://github.com/mrdoob/three.js) r169
 and [Lenis](https://github.com/darkroomengineering/lenis) 1.1.13 (both MIT, in `js/vendor/`). Coastlines: Natural
 Earth via [world-atlas](https://github.com/topojson/world-atlas) (ISC, `tools/data/`).

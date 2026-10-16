@@ -213,11 +213,11 @@ const ROWS = [
 ];
 
 // Paragraphs with a link inside are swapped whole (word order differs between languages).
-const CREDIT = '<a href="https://realarmaansidhu.com/" target="_blank" rel="noopener">Armaan Sidhu</a>';
+const SITE = (text) => `<a href="https://realarmaansidhu.com/" target="_blank" rel="noopener">${text}</a>`;
 const BLOCKS = {
   credit: {
-    fr: `Construit à partir du code du site d’${CREDIT}, avec three.js`,
-    de: `Basiert auf dem Website-Code von ${CREDIT}, mit three.js`,
+    fr: `D’après ${SITE('le site d’Armaan Sidhu')}`,
+    de: `Basierend auf ${SITE('der Website von Armaan Sidhu')}`,
   },
 };
 
