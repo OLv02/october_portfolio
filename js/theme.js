@@ -13,5 +13,9 @@ const hex = (c) => (Math.round(c[0] * 255) << 16) | (Math.round(c[1] * 255) << 8
 
 export const THEME = {
   bg: rgb('--bg-rgb', '4, 6, 12'),
+  forest: rgb('--forest-rgb', '16, 29, 25'),
+  canopy: rgb('--canopy-rgb', '88, 99, 75'),
+  pool: rgb('--pool-rgb', '39, 63, 49'),
 };
 export const bgHex = hex(THEME.bg);
+export const SKY = { base: hex(THEME.forest), glow: hex(THEME.canopy), pool: hex(THEME.pool) };
