@@ -24,7 +24,7 @@ attribute float aHalf;
 uniform float uTime, uTravel, uOp, uPxScale, uMaxPt, uDpr, uWindSize, uFlutter, uLoops, uBackgroundBrightness, uPointStrength, uTitleBrightness;
 uniform vec2 uFlightHalfExtent, uViewportPx;
 // per half (x = half 0, y = half 1): which object, its local progress, presence, scale, brightness, canopy light
-uniform vec2 uKind, uProg, uPres, uScale, uBright, uLightK;
+uniform vec2 uKind, uProg, uPres, uScale, uBright, uLightK, uRest;
 uniform vec3 uC0, uC1, uCamR, uCamU, uCamF, uCamPos;
 uniform float uStageD;
 ${PATH_GLSL}
@@ -65,7 +65,10 @@ void compPose(out vec3 p, out float size, out float angle, out vec3 colour, out 
   vec3 centre = mix(uC0, uC1, half_);
   float part = aObjLock.w, rank = clamp(aObjTun.x, 0., 1.);
   vec3 local = aObjLock.xyz, structure;
-  float gather = smoothstep(.08 + rank * .22, .60 + rank * .22, prog), objAlpha = .62, objSize = .085 * S / 7., turn = 1., bend = 1.;
+  // Each seed makes a short flight, staggered along the object (by its assembly rank), so the shape builds piece by piece
+  // quickly instead of as one long swarm. The rest pose (the seedling's .82) is where every piece has landed.
+  float bp = prog / mix(uRest.x, uRest.y, half_);
+  float gather = smoothstep(rank * .62, rank * .62 + .36, bp), objAlpha = .62, objSize = .085 * S / 7., turn = 1., bend = 1.;
   formed = gather;
 
   if (kind < .5) {          // Little bridge
@@ -93,7 +96,7 @@ void compPose(out vec3 p, out float size, out float angle, out vec3 colour, out 
     structure = part < .5 ? vec3(.94, .83, .49) : part < 1.5 ? vec3(1., .96, .81) : part < 2.5 ? vec3(.77, .86, .63) : part < 3.5 ? vec3(.70, .76, .56) : vec3(.94, .87, .64);
   } else {                  // fern: gathers as fiddleheads by .58, then the fronds unroll .55-1
     float s = aObjTun.x, curl = 0.;
-    gather = smoothstep(.06 + s * .16, .42 + s * .16, prog); formed = gather;
+    gather = smoothstep(s * .62, s * .62 + .36, bp); formed = gather;
     if (part < 2.5) {
       vec2 base; float a0, len, arch, f0, f1, pinna; fernSpec(aObjTun.w, base, a0, len, arch, f0, f1, pinna);
       float f = mix(f0, f1, smoothstep(.55, 1., prog));
@@ -119,7 +122,7 @@ void compPose(out vec3 p, out float size, out float angle, out vec3 colour, out 
   float bendK = sin(gather * 3.14159265) * (1. - gather) * bend;
   p = mix(wind, target, gather) + uCamU * bendK * sin(h * 6.283 + uTime * .13) * .35 * S / 6.;
   colour = mix(windColour, structure * bright, gather);
-  alpha = mix(windAlpha, objAlpha, gather * gather) * mix(uPres.x, uPres.y, half_);   // seeds still in flight stay faint
+  alpha = mix(windAlpha, objAlpha, gather) * mix(uPres.x, uPres.y, half_);
   size = mix(windSize, objSize, gather);
   angle *= 1. - gather * turn;
 }
@@ -204,7 +207,7 @@ export function createCompanions(main, data, M) {
   for (const k of ['uSeedAtlas', 'uTime', 'uTravel', 'uOp', 'uPxScale', 'uMaxPt', 'uDpr', 'uWindSize', 'uFlutter', 'uLoops', 'uBackgroundBrightness', 'uPointStrength', 'uFlightHalfExtent', 'uViewportPx', 'uEye', 'uLt']) share[k] = MU[k];
   const u = Object.assign(share, {
     uTitleBrightness: { value: 1.6 },
-    uKind: { value: new THREE.Vector2(0, 1) }, uProg: { value: new THREE.Vector2() }, uPres: { value: new THREE.Vector2() },
+    uKind: { value: new THREE.Vector2(0, 1) }, uRest: { value: new THREE.Vector2(1, 1) }, uProg: { value: new THREE.Vector2() }, uPres: { value: new THREE.Vector2() },
     uScale: { value: new THREE.Vector2(1, 1) }, uBright: { value: new THREE.Vector2(1, 1) }, uLightK: { value: new THREE.Vector2() },
     uC0: { value: new THREE.Vector3() }, uC1: { value: new THREE.Vector3() },
     uCamPos: { value: new THREE.Vector3() }, uStageD: { value: 10 },
@@ -237,17 +240,17 @@ export function createCompanions(main, data, M) {
 }
 
 // The scroll side: which section each half is showing, how far its object has assembled, and where its stage is.
-// sections: [{ name, half, slot, head }]. A section's local progress runs 0 → its rest pose as its stage (the slot) rises
-// from a little below the screen to its upper half (stage top 145% → 75% of the viewport height, measured after the
-// section's rise-in transform), so the object is mostly formed as it comes up from the bottom of the screen, in the gap
-// before its section: reversible, no timers. Reduced motion shows the rest pose without the gathering.
+// sections: [{ name, half, slot, head }]. A section's local progress runs 0 → its rest pose over a short stretch of
+// scrolling while its stage is on screen: from the stage's centre at 95% of the viewport height to 70% (a quarter of a
+// screen), so you see the seeds fly in and the object build in the gap before its section without it taking long.
+// Reversible, no timers. Reduced motion shows the rest pose without the gathering.
 const _c = new THREE.Vector3();
 export function updateCompanions(sys, sections, { camera, W, H, reduced, tune }) {
   const u = sys.uniforms, vh = innerHeight;
   const state = sections.map((s) => {
     const slot = s.slot.getBoundingClientRect();
-    const ramp = Math.min(1, Math.max(0, (1.45 * vh - slot.top) / (0.7 * vh)));
-    const on = slot.bottom > -0.05 * vh && slot.top < 1.45 * vh && slot.width > 0;
+    const mid = slot.top + slot.height / 2, ramp = Math.min(1, Math.max(0, (0.95 * vh - mid) / (0.25 * vh)));
+    const on = slot.bottom > -0.05 * vh && slot.top < 1.05 * vh && slot.width > 0;
     return { s, slot, ramp, on, weight: on ? (reduced ? 1 : ramp) : 0 };
   });
   camera.updateMatrixWorld();
@@ -278,6 +281,7 @@ export function updateCompanions(sys, sections, { camera, W, H, reduced, tune })
     (h ? u.uC1 : u.uC0).value.copy(_c);
     u.uScale.value.setComponent(h, S); u.uBright.value.setComponent(h, cfg.brightness * tune.render.companionGain);
     u.uLightK.value.setComponent(h, cur.s.name === 'seedling' ? cfg.light : 0);
+    u.uRest.value.setComponent(h, def.rest);
     if (cur.s.name === 'seedling') {
       lightOn = true;
       sys.light.position.copy(_c).addScaledVector(u.uCamF.value, 0.25 * S / 6);
