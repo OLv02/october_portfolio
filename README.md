@@ -2,9 +2,9 @@
 
 Owen Lavender's portfolio ("Windborne"): a one-page site where a globe made of dandelion seeds, with Ottawa marked,
 turns into a flight as you scroll. A breath from the right blows the globe away, leaving a clump around Ottawa for last, while
-the camera dives gently into Ottawa; then it follows the wind through the seeds under About,
-Work and Highlights, comes out into warm light where three seeds land, and an ivory daisy grows that the rest of the
-page scrolls over. English, French and German.
+the camera dives gently into Ottawa; then it follows the wind through the seeds under About through Awards (with a
+seed-made companion beside Work, Highlights, Leadership, Writing and Education), comes out into warm light where three
+seeds land, and an ivory daisy grows just before Let's talk. English, French and German.
 
 Live at **https://olv02.github.io/october_portfolio/** once GitHub Pages is turned on (see below).
 

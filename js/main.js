@@ -1,5 +1,6 @@
 // The conductor. Maps scroll to a five-act flight that runs underneath the page:
-//   globe → dive into Ottawa → tunnel (under About, Work, Highlights) → through the sun → the vault opens → the rest of the page
+//   seed globe → dive into Ottawa → the wind journey (under About through Awards) → warm light and three landings →
+//   the daisy grows → Let's talk beside it
 // and keeps every screen size, from a phone held upright to a wide desktop, composed.
 import * as THREE from './vendor/three.module.min.js';
 import Lenis from './vendor/lenis.mjs';
@@ -86,7 +87,7 @@ Object.assign(tune, { profile: { ...PROFILES[tune.profileName] } });
 const seedBudget = () => Math.min(tune.profile.seeds, TIER_SEEDS[tier.name] || tune.structure.capacity, tune.structure.capacity);
 
 // ---------- scroll → flight: beats anchored to the page, so the words and the flight stay in step ----------
-// [scroll y, flight progress]: the hero holds · dive into the eye · the tunnel runs under About, Work and Projects ·
+// [scroll y, flight progress]: the hero holds · dive into the eye · the journey runs under About through Awards ·
 // through the sun · the vault opens · then the rest of the page scrolls over the open vault (progress 1, "extra" screens)
 const flightEl = $('flight'), vaultBeat = $('beat-vault'), afterEl = $('after');
 let beats = [[0, 0], [1, 1]];
@@ -480,8 +481,7 @@ function update(dt) {
     // afterwards a slow breath of a drift while the rest of the page scrolls over the daisy
     const drift = REDUCED ? 0 : afterK;
     camPos.x += Math.sin(T * 0.11) * 0.12 * drift; camPos.y += (Math.sin(T * 0.07) * 0.08 + 0.15 * Math.sin(extra * 0.6)) * drift;
-    // Once the rest of the page starts (Leadership on), the daisy steps back, lower and to the right, so it stays rooted
-    // behind the text while each section's companion stands beside its heading. Provisional composition, for review.
+    // As Let's talk scrolls up, the daisy steps back, lower and to the right, so it stays rooted beside the contact text.
     const back = ease(clamp01(extra * 3)), A = tune.after;
     if (back > 0) {
       tmp.set(-LF.fieldW * A.shiftRight * back, LF.fieldH * A.shiftDown * back, 0);

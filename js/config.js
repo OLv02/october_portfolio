@@ -67,7 +67,7 @@ export const CONFIG = {
     quill: { brightness: 0.5, size: 0.85 },               // Writing: quill with one ink trail
     fern: { brightness: 0.8, size: 0.85 },                // Education: unfurling fern
   },
-  // after the flight the daisy steps back so the companions can stand beside the text (provisional composition)
+  // as Let's talk scrolls up the daisy steps back, lower right, beside the contact text (provisional composition)
   after: { pullBack: 0.5, shiftRight: 0.2, shiftDown: 0.12 },
   // the light and landing sequence runs over this part of the page's flight progress
   segments: { dive: [0.05, 0.25], landing: [0.66, 1] },
