@@ -18,6 +18,7 @@ import { computeLayout } from './layout.js';
 import { GLOBE } from './globe-meta.js';
 import { initSite, layoutTop } from './site.js';
 import { t, locale, onLangChange, beforeLangChange } from './i18n.js';
+import { bgHex } from './theme.js';
 
 THREE.ColorManagement.enabled = false;
 
@@ -45,7 +46,7 @@ const $ = (id) => document.getElementById(id);
 const canvas = $('gl');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, depth: false, stencil: false, powerPreference: 'high-performance' });
 renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
-renderer.setClearColor(0x04060c, 1);
+renderer.setClearColor(bgHex, 1);
 const gl = renderer.getContext();
 // Software-only graphics (a remote desktop, a VM, a blocklisted GPU) draw the scene on the CPU, so start at the lightest tier
 const gpuName = (() => { const x = gl.getExtension('WEBGL_debug_renderer_info'); return x ? String(gl.getParameter(x.UNMASKED_RENDERER_WEBGL)) : ''; })();
