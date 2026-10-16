@@ -9,14 +9,13 @@ import { mulberry32, buildMain } from './build-data.js';
 import { createMainSystem, createOccluder, createSeedAtlas, setSeedCount } from './particles.js';
 import { Sky } from './sky.js';
 import { Solar } from './solar.js';
-import { TunnelFX } from './fx.js';
 import { Post } from './post.js';
 import { Sound } from './audio.js';
 import { computeLayout } from './layout.js';
 import { GLOBE } from './globe-meta.js';
 import { initSite, layoutTop } from './site.js';
 import { t, locale, onLangChange, beforeLangChange } from './i18n.js';
-import { bgHex, THEME } from './theme.js';
+import { bgHex, THEME, SKY } from './theme.js';
 import { CONFIG, PROFILES, TIER_SEEDS, profileFor } from './config.js';
 
 THREE.ColorManagement.enabled = false;
@@ -65,15 +64,12 @@ const sunPos = eye.clone().add(new THREE.Vector3(0, 0, -(L + TUN.sunGap)));
 const vaultCenter = eye.clone().add(new THREE.Vector3(0, 0, -(L + TUN.sunGap + TUN.vaultGap)));
 
 // ---------- always-on layers (render behind the loading gate) ----------
-const sky = new Sky(renderer, sampleTier, hdrType, R);
+const post = new Post(renderer, hdrType);
+const sky = new Sky(renderer, sampleTier, hdrType, R, SKY, post.u.uExposure.value);
 sky.addTo(scene);
 sky.setDust(tier.dust);
 const solar = new Solar(R);
 scene.add(solar.group);
-const fx = new TunnelFX(R, sampleTier.glyphs, eye);
-fx.addTo(scene);
-fx.setGlyphs(tier.glyphs);
-const post = new Post(renderer, hdrType);
 post.u.uTaps.value = REDUCED ? 0 : tier.zoomTaps;
 post.u.uGrain.value = device.coarse ? 0.028 : 0.035;
 const sound = new Sound();
@@ -144,7 +140,6 @@ function applyTier(t) {
   tier = t;
   if (mainSys) setSeedCount(mainSys, seedBudget());
   sky.setDust(Math.min(t.dust, sampleTier.dust));
-  fx.setGlyphs(Math.min(t.glyphs, sampleTier.glyphs));
   post.u.uTaps.value = REDUCED ? 0 : t.zoomTaps;
   resize(true);
   $('q').textContent = t.name; if (Q.has('debug')) $('q').hidden = false;
@@ -356,20 +351,13 @@ document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
 // ---------- the flight ----------
 let gateFade = SHOT ? 1 : 0, pS = 0, extra = 0, prevCam = new THREE.Vector3(), spd = 0;
 let windT = 12;   // the seeds' own clock: it runs at the selected wind speed, separately from the camera
+let motion = 0, prevTravel = null;   // how much the camera is travelling through the seeds right now, 0..1
 const cues = { chime: false, boom: false };
 const camPos = new THREE.Vector3(), camTgt = new THREE.Vector3(), tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
 const fwd = new THREE.Vector3(), upV = new THREE.Vector3(), par = new THREE.Vector2();
-const look = { tint: new THREE.Vector3(1, 1, 1), sky: 1, stars: 1, dust: 1, shooting: 1 };
+const look = { tint: new THREE.Vector3(1, 1, 1), sky: 1, dust: 1 };
 const shot = { p: +(Q.get('p') || 0), x: +(Q.get('x') || 0), t: +(Q.get('t') || 12), intro: +(Q.get('intro') ?? 1) };
 
-function frameOf(s, P, N, B) {
-  pathPos(eye, s, P);
-  pathPos(eye, s + 0.6, tmp); pathPos(eye, s - 0.6, tmp2);
-  const Tn = tmp.sub(tmp2).normalize();
-  N.crossVectors(Tn, THREE.Object3D.DEFAULT_UP).normalize();
-  B.crossVectors(N, Tn);
-}
-const _P = new THREE.Vector3(), _N = new THREE.Vector3(), _B = new THREE.Vector3();
 
 function update(dt) {
   // --- progress
@@ -452,13 +440,21 @@ function update(dt) {
   const maxPt = Math.min(64 * dpr, maxPointHW);
 
   // --- the seeds
-  if (!SHOT) windT += dt * P.windSpeed;
-  else windT = shot.t;
+  // While the page scrolls through the journey the camera travels and the wind holds its breath; when the page
+  // rests the camera holds still and the seeds drift, flutter and loop again.
+  const travel = eye.z - camPos.z;
+  if (prevTravel !== null && dt > 0) {
+    const moving = Math.min(1, Math.abs(travel - prevTravel) / dt / tune.flight.motionSpeed);
+    motion += (moving - motion) * (1 - Math.exp(-dt / tune.flight.motionEase));
+  }
+  prevTravel = travel;
+  if (SHOT) { windT = shot.t; motion = 0; }
+  else windT += dt * P.windSpeed * (1 - motion * tunnelGate);
   if (mainSys) {
     const U = mainSys.uniforms, G = tune.globe;
     U.uTime.value = windT; U.uIntro.value = introT;
     U.uDive.value = seg(pS, tune.segments.dive[0], tune.segments.dive[1]);
-    U.uTravel.value = eye.z - camPos.z;
+    U.uTravel.value = travel;
     gateFade += ((ready ? 1 : 0) - gateFade) * (1 - Math.exp(-dt * 1.5));
     U.uOp.value = entered ? 1 : 0.42 * gateFade;
     U.uPxScale.value = pxScale / K_SIZE; U.uMaxPt.value = maxPt; U.uDpr.value = dpr;
@@ -502,35 +498,14 @@ function update(dt) {
   const onScreen = inFront && Math.abs(tmp.x) < 1.3 && Math.abs(tmp.y) < 1.3;
   post.u.uSun.value.set(tmp.x * 0.5 + 0.5, tmp.y * 0.5 + 0.5, onScreen ? sunOp * (pS < 0.22 ? 0.25 : 0.35 + 1.4 * heat) : 0);
 
-  // --- tunnel effects
-  fx.glyphU.uTime.value = T;
-  fx.glyphU.uOp.value = seg(pS, 0.215, 0.26) * (1 - seg(pS, 0.66, 0.71));
-  for (const tr of fx.trills) {
-    const sT = tr.s * L, ahead = sT - sCam;
-    frameOf(sT, _P, _N, _B);
-    const a = tr.a0 + (sCam - sT) * 0.045 + T * 0.05;
-    tr.o.position.copy(_P).addScaledVector(_N, Math.cos(a) * 2.5).addScaledVector(_B, Math.sin(a) * 2.5);
-    tr.o.rotation.set(Math.sin(T * 0.6 + tr.ph) * 0.7, Math.cos(T * 0.5 + tr.ph) * 0.9, T * tr.spin);
-    tr.u.uTime.value = T;
-    tr.u.uBloom.value = sm(40, 12, ahead);
-    tr.u.uAsm.value = sm(58, 30, ahead);
-    tr.u.uOp.value = tunnelGate * sm(-8, 2, ahead) * (1 - sm(46, 62, ahead));
-    tr.o.scale.setScalar(2.1); tr.u.uObjScale.value = 2.1;
-    tr.u.uPxScale.value = pxScale; tr.u.uMaxPt.value = maxPt;
-    tr.o.visible = tr.u.uOp.value > 0.001;
-  }
-  fx.setScale(pxScale, maxPt);
-  fx.shock.visible = false;
   if (pS > 0.69 && !cues.boom) { cues.boom = true; sound.boom(); }
   if (pS < 0.66) cues.boom = false;
 
   // --- the look of each act
   const warm = sm(0.3, 0.7, pS) * (1 - sm(0.72, 0.78, pS));
   look.tint.set(1, 1, 1).lerp(tmp.set(1.18, 1.0, 0.82), warm);
-  look.sky = pS < 0.72 ? lerp(1, 0.55, sm(0.2, 0.3, pS)) : lerp(0.55, 0.95, sm(0.72, 0.8, pS));
-  look.stars = lerp(1, 0.6, tunnelGate);
+  look.sky = pS < 0.72 ? lerp(1, 0.8, sm(0.2, 0.3, pS)) : lerp(0.8, 1, sm(0.72, 0.8, pS));
   look.dust = 1;
-  look.shooting = act === 'tunnel' ? 0 : 1;
   sky.update(camera, T, dt, look);
   sky.setScale(dpr, pxScale);
 
@@ -542,7 +517,7 @@ function update(dt) {
   post.u.uWhite.value = white;
   post.u.uFlash.value = 0;
   post.u.uGain.value.set(1, 1, 1).lerp(tmp.set(1.06, 1.0, 0.9), warm);
-  post.u.uLift.value.set(0, 0.004, 0.012);
+  post.u.uLift.value.set(0, 0, 0);
   post.u.uRip.value.w = 0;
 
   // --- sound follows the flight
@@ -594,4 +569,4 @@ function seek(p, ex = 0) {
   scrollTo(0, y);
   return y;
 }
-window.__v8 = { get state() { return { pS, extra, T, tier: tier.name, entered, ready, W, H, dpr }; }, raw: rawProgress, seek, pause: (b) => { paused = !!b; }, setDprCap: (c) => { dprCap = c || 9; resize(true); }, camera, renderer, post, layout: () => layout, applyTier, TIERS, sound, fx, solar, sky, scene, tune, seeds: () => mainSys };
+window.__v8 = { get state() { return { pS, extra, T, tier: tier.name, entered, ready, W, H, dpr }; }, raw: rawProgress, seek, pause: (b) => { paused = !!b; }, setDprCap: (c) => { dprCap = c || 9; resize(true); }, camera, renderer, post, layout: () => layout, applyTier, TIERS, sound, solar, sky, scene, tune, seeds: () => mainSys };

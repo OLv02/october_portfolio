@@ -18,6 +18,10 @@
   --white-rgb: 255, 255, 255;
   --black-rgb: 0, 0, 0;
   --glass-base-rgb: 6, 11, 20;
+  /* the forest air behind the scene (js/sky.js): base, canopy glow up right, cool pool low left */
+  --forest-rgb: 16, 29, 25;
+  --canopy-rgb: 88, 99, 75;
+  --pool-rgb: 39, 63, 49;
   --sans: 'Space Grotesk', system-ui, sans-serif;
   --vhs: 1vh;
   --safe-t: env(safe-area-inset-top, 0px);

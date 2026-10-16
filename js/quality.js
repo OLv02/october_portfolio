@@ -2,9 +2,10 @@
 // and an adaptive monitor steps quality down (or, on tablets, up) from real frame times.
 
 export const TIERS = {
-  high: { name: 'high', count: 180000, laptop: 26000, stars: 6000, dust: 2600, glyphs: 1600, dpr: 2.0, bloom: 5, zoomTaps: 10, sky: 2048 },
-  med:  { name: 'med',  count: 110000, laptop: 16000, stars: 4200, dust: 1800, glyphs: 1100, dpr: 2.0, bloom: 4, zoomTaps: 6,  sky: 1024 },
-  low:  { name: 'low',  count: 60000,  laptop: 9000,  stars: 2600, dust: 1100, glyphs: 700,  dpr: 1.5, bloom: 3, zoomTaps: 0,  sky: 1024 },
+  // the number of seeds each tier may draw is TIER_SEEDS in config.js; dust is the pollen motes
+  high: { name: 'high', dust: 1400, dpr: 2.0, bloom: 5, zoomTaps: 10 },
+  med:  { name: 'med',  dust: 1000, dpr: 2.0, bloom: 4, zoomTaps: 6 },
+  low:  { name: 'low',  dust: 600,  dpr: 1.5, bloom: 3, zoomTaps: 0 },
 };
 const ORDER = ['low', 'med', 'high'];
 
