@@ -26,7 +26,8 @@ export const CONFIG = {
     coastShare: 3 / 7,          // share of seeds given an alternate spot on a coastline
     bank: false,
   },
-  plant: {                      // selected ivory daisy
+  plant: {                      // the approved ivory daisy (proof v27, "This daisy is perfect")
+    variant: 'pair',            // one opposing pair of the original leaves on a short stem; 'original' = six-leaf reference
     brightness: 1.2,
     sway: 1.1,
     showRoots: true,
