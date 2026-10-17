@@ -2,9 +2,9 @@
 
 Owen Lavender's portfolio ("Windborne"): a one-page site where a globe made of dandelion seeds, with Ottawa marked,
 turns into a flight as you scroll. A breath from the right blows the globe away, leaving a clump around Ottawa for last, while
-the camera dives gently into Ottawa; then it follows the wind through the seeds under About,
-Work and Highlights, comes out into warm light where three seeds land, and an ivory daisy grows that the rest of the
-page scrolls over. English, French and German.
+the camera dives gently into Ottawa; then it follows the wind through the seeds under About through Let's talk (with a
+seed-made companion beside Work, Highlights, Leadership, Writing, Education, Awards and Let's talk). The light, landing and daisy ending is kept in
+the back pocket: off by default (`plant.ending` in `js/config.js`), previewable with `?daisy`. English, French and German.
 
 Live at **https://olv02.github.io/october_portfolio/** once GitHub Pages is turned on (see below).
 
@@ -26,7 +26,8 @@ python3 tools/serve.py        # http://localhost:8642
 `serve.py` turns caching off and applies the security headers in `_headers`, so they're tested locally too.
 Useful URL flags: `?static` (the plain fallback page), `?lang=fr` / `?lang=de`, `?tier=low|med|high`,
 `?debug` (shows the quality tier), `?shot&p=0.5` (a still frame at that point in the flight, for screenshots),
-`?tune` (the hidden tuning panel: live sliders for every scene setting, with Copy/Export JSON).
+`?tune` (the hidden tuning panel: live sliders for every scene setting, with Copy/Export JSON),
+`?shot&sec=writing&y=.4` (a still with that section's heading at 40% of the screen, for the companions).
 
 ## Where things are
 
@@ -38,6 +39,7 @@ Useful URL flags: `?static` (the plain fallback page), `?lang=fr` / `?lang=de`, 
 | The flight (scroll → camera, every act) | `js/main.js` |
 | The globe image | `assets/globe.png`, built by `tools/build-globe.py` (writes `js/globe-meta.js` too) |
 | Seeds → wind → daisy | `js/build-data.js` (where each seed goes) and `js/particles.js` (seed atlas and shaders) |
+| Section companions (Work bridge, Highlights seedling, Leadership compass, Writing quill, Education fern, Awards laurel, Let's talk envelope) | `js/companion-data.js` (shapes, ported from the proof), `js/companion-shader.js` (the background seeds that build them), `js/companions.js` (scroll, staging, and the reserve that builds them after the landing), `.companion-slot` in `index.html`/`style.css` |
 | Every tunable number | `js/config.js` (device profiles, globe, journey, landing, daisy); `?tune` edits a live copy |
 | The forest air | `js/sky.js`; palette tokens in `style.css` `:root`, read by `js/theme.js` |
 | Coastline weights | `assets/coast.png`, from the Windborne handoff (same projection as `globe.png`; no generator yet) |

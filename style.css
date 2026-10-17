@@ -155,7 +155,7 @@ html.reading .chrome::before { opacity: 1; }
 html.menu-open, html.menu-open body { overflow: hidden; }
 
 /* ---------- hero (phone: face up top, name below) ---------- */
-#journey { height: calc(var(--vhs) * 2.1); position: relative; }
+#journey { height: calc(var(--vhs) * 0.9); position: relative; }
 /* Ottawa's name, placed on its mark by main.js */
 .geo-label { position: fixed; z-index: 2; left: 0; top: 0; margin: -7px 0 0 12px; pointer-events: none; visibility: hidden; opacity: 0; white-space: nowrap;
   font: 500 10.5px var(--mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink); text-shadow: 0 1px 8px rgba(var(--black-rgb), 0.9); }
@@ -209,9 +209,13 @@ html.menu-open, html.menu-open body { overflow: hidden; }
   padding: 0 calc(var(--gutter) + var(--safe-r)) 0 calc(var(--gutter) + var(--safe-l));
 }
 #after { padding-bottom: calc(6vh + var(--safe-b)); }
-/* the two short beats where the flight has the screen to itself: through the sun, then the vault opens */
-.beat { height: calc(var(--vhs) * 0.7); }
-.beat-vault { height: calc(var(--vhs) * 1.5); }
+/* the Easter egg past Let's talk, where the flight has the screen to itself: the warm light and landings, then the daisy grows */
+.beat { height: calc(var(--vhs) * 0.25); }
+.beat-vault { height: calc(var(--vhs) * 1.25); }
+#after .site-foot { margin-top: 0; }
+/* the daisy ending is in the back pocket (config plant.ending): no beats, and the footer follows Let's talk */
+html:not(.ending) .beat { display: none; }
+html:not(.ending) #after .site-foot { margin-top: 12vh; }
 
 /* Each section rises into place as it arrives and settles back as it leaves. site.js sets --in (0 → 1) and
    --out (0 → 1) from the scroll position; 2D transforms only, so the frosted cards keep their blur everywhere. */
@@ -220,8 +224,12 @@ html.menu-open, html.menu-open body { overflow: hidden; }
   transform: translate3d(0, calc((1 - var(--in)) * 24vh - var(--out) * 7vh), 0) scale(calc(1 - (1 - var(--in)) * 0.1 - var(--out) * 0.06));
 }
 #about { margin-top: 6vh; }
-#after > .sec:first-child { margin-top: 4vh; }
-.sec-head { margin-bottom: 26px; }
+.sec-head { margin-bottom: 26px; position: relative; }
+/* Each section companion's stage: an empty, aria-hidden box that js/companions.js frames the seed-made object on.
+   Phones: above the heading, in the gap before the section. Wider screens: beside the heading, rising into that gap.
+   Provisional composition, for review. */
+.companion-slot { position: absolute; left: 0; right: 0; bottom: calc(100% + 2vh); height: min(24vh, 210px); pointer-events: none; }
+@media (min-width: 760px) { .companion-slot { left: 36%; width: 34%; bottom: -2vh; height: min(42vh, 400px); } }
 .idx { font: 500 12px var(--mono); letter-spacing: 0.2em; color: var(--sage); margin-bottom: 10px; text-shadow: 0 1px 12px rgba(var(--black-rgb), 0.9); }
 .idx::after { content: ''; display: inline-block; vertical-align: middle; width: 34px; height: 1px; margin-left: 12px; background: rgba(var(--sage-rgb), 0.55); }
 .content h2 { font-family: var(--display); font-size: clamp(40px, 11vw, 86px); font-weight: 400; letter-spacing: -0.04em; line-height: 1; text-shadow: 0 2px 14px rgba(var(--black-rgb), 0.7); }

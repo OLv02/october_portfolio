@@ -14,16 +14,24 @@ const LABELS = {
   'globe.brightness': 'Globe brightness', 'globe.aperture': 'Breath / opening strength', 'globe.blowDive': 'Dive into Ottawa (blown)', 'globe.compactScale': 'Globe sprite scale',
   'plant.brightness': 'Plant brightness', 'plant.sway': 'Plant sway', 'plant.scale': 'Plant size',
   'landing.light': 'Warm light', 'landing.spread': 'Landing spread', 'landing.plantRight': 'Plant offset (wide)',
+  'companions.bridge.size': 'Bridge size (Work)', 'companions.seedling.size': 'Seedling size (Highlights)', 'companions.seedling.light': 'Seedling canopy light',
+  'companions.compass.size': 'Compass size (Leadership)', 'companions.quill.size': 'Quill size (Writing)', 'companions.fern.size': 'Fern size (Education)',
+  'companions.laurel.size': 'Laurel size (Awards)', 'companions.envelope.size': 'Envelope size (Let\'s talk)',
+  'after.pullBack': 'Daisy steps back', 'after.shiftRight': 'Daisy shifts right', 'after.shiftDown': 'Daisy shifts down',
+  'render.companionGain': 'Companion gain (tone curve)',
   'render.globeGain': 'Globe gain (tone curve)', 'render.occluder': 'Globe backing',
   'flight.halfHeight': 'Field half height', 'flight.minHalfWidth': 'Field min half width', 'flight.motionEase': 'Travel settle (s)',
 };
 const GROUPS = [
   ['Seeds · profile', PROFILE_KEYS],
   ['Look', ['look.backgroundBrightness', 'look.pointStrength']],
+  ['Companion render', ['render.companionGain']],
   ['Globe', ['globe.brightness', 'globe.aperture', 'globe.blowDive', 'globe.compactScale', 'render.globeGain', 'render.occluder']],
   ['Journey', ['flight.halfHeight', 'flight.minHalfWidth', 'flight.motionEase']],
   ['Light & landing', ['landing.light', 'landing.spread', 'landing.plantRight']],
   ['Daisy', ['plant.brightness', 'plant.sway', 'plant.scale']],
+  ['Companions', ['companions.bridge.size', 'companions.seedling.size', 'companions.seedling.light', 'companions.compass.size', 'companions.quill.size', 'companions.fern.size', 'companions.laurel.size', 'companions.envelope.size']],
+  ['After the flight', ['after.pullBack', 'after.shiftRight', 'after.shiftDown']],
 ];
 const NEEDS_COUNT = new Set(['seeds']), NEEDS_LAYOUT = new Set(['plant.scale', 'landing.plantRight']);
 
@@ -31,12 +39,12 @@ export function initTune(tune, { info, onCount, onLayout, onPlant }) {
   const pathOf = (k) => (PROFILE_KEYS.includes(k) ? 'profile.' + k : k);
   const snapshot = () => {
     const out = { profileName: tune.profileName, profile: { ...tune.profile } };
-    for (const k of ['look', 'globe', 'plant', 'landing', 'flight', 'render']) out[k] = { ...tune[k] };
+    for (const k of ['look', 'globe', 'plant', 'landing', 'flight', 'render', 'companions', 'after']) out[k] = { ...tune[k] };
     return out;
   };
   const apply = (saved) => {
     if (saved.profileName && PROFILES[saved.profileName]) tune.profileName = saved.profileName;
-    for (const k of ['profile', 'look', 'globe', 'plant', 'landing', 'flight', 'render']) if (saved[k]) Object.assign(tune[k], saved[k]);
+    for (const k of ['profile', 'look', 'globe', 'plant', 'landing', 'flight', 'render', 'companions', 'after']) if (saved[k]) Object.assign(tune[k], saved[k]);
   };
   let remember = false;
   try { const s = localStorage.getItem(KEY); if (s) { apply(JSON.parse(s)); remember = true; } } catch (e) { /* storage blocked */ }
@@ -105,7 +113,7 @@ export function initTune(tune, { info, onCount, onLayout, onPlant }) {
   root.querySelector('[data-k="globe.ottawaLast"]').addEventListener('change', (e) => { tune.globe.ottawaLast = e.target.checked; persist(); });
   root.querySelector('[data-a="remember"]').addEventListener('change', (e) => { remember = e.target.checked; persist(); });
   root.querySelector('[data-a="reset"]').addEventListener('click', () => {
-    for (const k of ['look', 'globe', 'plant', 'landing', 'flight', 'render']) Object.assign(tune[k], structuredClone(CONFIG[k]));
+    for (const k of ['look', 'globe', 'plant', 'landing', 'flight', 'render', 'companions', 'after']) Object.assign(tune[k], structuredClone(CONFIG[k]));
     Object.assign(tune.profile, PROFILES[tune.profileName]);
     onCount(); onLayout(); onPlant(); persist(); sync();
   });

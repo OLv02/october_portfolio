@@ -1,5 +1,6 @@
 // The conductor. Maps scroll to a five-act flight that runs underneath the page:
-//   globe → dive into Ottawa → tunnel (under About, Work, Highlights) → through the sun → the vault opens → the rest of the page
+//   seed globe → dive into Ottawa → the wind journey (under About through Awards) → warm light and three landings →
+//   the daisy grows → Let's talk beside it
 // and keeps every screen size, from a phone held upright to a wide desktop, composed.
 import * as THREE from './vendor/three.module.min.js';
 import Lenis from './vendor/lenis.mjs';
@@ -7,6 +8,7 @@ import { TUN, pathPos, pathBank } from './path.js';
 import { TIERS, detectDevice, AdaptiveQuality } from './quality.js';
 import { mulberry32, buildMain, buildPlant, PLANT_VARIANTS } from './build-data.js';
 import { createMainSystem, createOccluder, createSeedAtlas, setSeedCount, createGround } from './particles.js';
+import { createCompanions, updateCompanions } from './companions.js';
 import { Sky } from './sky.js';
 import { Post } from './post.js';
 import { Sound } from './audio.js';
@@ -74,27 +76,41 @@ const sound = new Sound();
 // the device lab passes the safe-area insets a real phone would report
 if (EMBED && Q.get('safe')) Q.get('safe').split(',').forEach((v, i) => document.documentElement.style.setProperty(['--safe-t', '--safe-r', '--safe-b', '--safe-l'][i], (+v || 0) + 'px'));
 
-let mainSys = null, occluder = null;
+let mainSys = null, occluder = null, companions = null;
+// each section companion's stage (.companion-slot) and heading; the two halves of the companion population alternate
+const COMPANION_SECTIONS = [['work', 'bridge', 0], ['highlights', 'seedling', 1], ['leadership', 'compass', 0], ['writing', 'quill', 1], ['education', 'fern', 0], ['awards', 'laurel', 1], ['contact', 'envelope', 0]]
+  .map(([id, name, half]) => { const sec = $(id); return sec && { name, half, slot: sec.querySelector('.companion-slot'), head: sec.querySelector('.sec-head') }; })
+  .filter((s) => s && s.slot && s.head);
 // The live copy of the settings: the committed defaults from config.js, plus the device profile's seed look
 const tune = { ...structuredClone(CONFIG), profileName: profileFor({ phone: device.phone, width: innerWidth }) };
 Object.assign(tune, { profile: { ...PROFILES[tune.profileName] } });
+// the daisy ending is kept in the back pocket (config plant.ending); without it the page ends at Let's talk and the flight
+// never reaches the light
+const ENDING = tune.plant.ending || Q.has('daisy');
+document.documentElement.classList.toggle('ending', ENDING);
 const seedBudget = () => Math.min(tune.profile.seeds, TIER_SEEDS[tier.name] || tune.structure.capacity, tune.structure.capacity);
 
 // ---------- scroll → flight: beats anchored to the page, so the words and the flight stay in step ----------
-// [scroll y, flight progress]: the hero holds · dive into the eye · the tunnel runs under About, Work and Projects ·
-// through the sun · the vault opens · then the rest of the page scrolls over the open vault (progress 1, "extra" screens)
+// [scroll y, flight progress]: the hero holds · dive into the eye · the journey runs under About through Let's talk ·
+// past the last section, an Easter egg: through the sun, the landings, and the daisy, fully grown at the foot of the page
 const flightEl = $('flight'), vaultBeat = $('beat-vault'), afterEl = $('after');
 let beats = [[0, 0], [1, 1]];
 const docTop = (el) => el.getBoundingClientRect().top + scrollY;
 function computeBeats() {
   const vh = innerHeight, fTop = docTop(flightEl), fEnd = fTop + flightEl.offsetHeight;
-  const k = [[0, 0], [0.25 * vh, 0.05], [fTop - 0.62 * vh, 0.22], [fEnd - 0.35 * vh, 0.66], [docTop(vaultBeat) - 0.1 * vh, 0.72], [docTop(afterEl) - 0.82 * vh, 1]];
+  // Content first, animation as the embellishment: the name holds only briefly, About starts rising as soon as it fades
+  // and the opening plays behind it (finishing with About's heading about 40% down the screen). The daisy is the reward
+  // for scrolling on past Let's talk: it finishes growing just before the bottom of the page, the footer beneath it.
+  const end = document.documentElement.scrollHeight - vh;
+  const k = ENDING
+    ? [[0, 0], [0.12 * vh, 0.05], [fTop - 0.35 * vh, 0.22], [fEnd - 0.35 * vh, 0.66], [docTop(vaultBeat) - 0.1 * vh, 0.72], [Math.min(docTop(afterEl) - 0.82 * vh, end - 2), 1]]
+    : [[0, 0], [0.12 * vh, 0.05], [fTop - 0.35 * vh, 0.22], [end, 0.6]];   // the wind journey runs to the foot of the page
   for (let i = 1; i < k.length; i++) k[i][0] = Math.max(k[i][0], k[i - 1][0] + 1);
   beats = k;
 }
 function progressAt(y) {
   const last = beats[beats.length - 1];
-  if (y >= last[0]) return { p: 1, ex: (y - last[0]) / innerHeight };
+  if (y >= last[0]) return { p: last[1], ex: last[1] < 1 ? 0 : (y - last[0]) / innerHeight };
   for (let i = 1; i < beats.length; i++) {
     if (y < beats[i][0]) { const [y0, p0] = beats[i - 1], [y1, p1] = beats[i]; return { p: p0 + ((y - y0) / (y1 - y0)) * (p1 - p0), ex: 0 }; }
   }
@@ -257,6 +273,9 @@ let ready = false;
     const tex = new THREE.CanvasTexture(pix.canvas); tex.flipY = false; tex.generateMipmaps = false; tex.minFilter = THREE.LinearFilter;
     occluder = createOccluder(tex, GLOBE, S0, THEME.forest.map((c) => (-Math.log(1 - c) / post.u.uExposure.value) * 0.6));
     scene.add(mainSys.points, mainSys.kids, occluder);
+    // the section companions are built from these same seeds (two thirds of them are builders; see js/companions.js)
+    companions = createCompanions(mainSys);
+    scene.add(companions.light, companions.reserve);
     if (Q.has('tune')) rebuildPlant();   // a remembered ?tune variant may have arrived after the worker started
     applyTier(tier);
     progress(1);
@@ -385,13 +404,15 @@ const cues = { chime: false };
 const camPos = new THREE.Vector3(), camTgt = new THREE.Vector3(), tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
 const fwd = new THREE.Vector3(), upV = new THREE.Vector3(), par = new THREE.Vector2();
 const look = { tint: new THREE.Vector3(1, 1, 1), sky: 1, dust: 1 };
-const shot = { p: +(Q.get('p') || 0), x: +(Q.get('x') || 0), t: +(Q.get('t') || 12), intro: +(Q.get('intro') ?? 1) };
+// ?shot&sec=work&y=.4 puts that section's heading at 40% of the screen height (for companion stills) instead of using p/x
+const shot = { p: +(Q.get('p') || 0), x: +(Q.get('x') || 0), t: +(Q.get('t') || 12), intro: +(Q.get('intro') ?? 1), sec: Q.get('sec'), y: +(Q.get('y') ?? 0.4) };
 
 
 function update(dt) {
   // --- progress
   let { p, ex } = progressAt(window.scrollY);
-  if (SHOT) { p = shot.p; ex = shot.x; pS = p; extra = ex; }
+  if (SHOT && !shot.sec) { p = shot.p; ex = shot.x; }
+  if (SHOT) { pS = p; extra = ex; }
   else { const k = 1 - Math.exp(-dt * (lenis ? 11 : 7)); pS += (p - pS) * k; extra += (ex - extra) * k; }
   if (!isFinite(pS)) pS = p;
 
@@ -469,6 +490,12 @@ function update(dt) {
     // afterwards a slow breath of a drift while the rest of the page scrolls over the daisy
     const drift = REDUCED ? 0 : afterK;
     camPos.x += Math.sin(T * 0.11) * 0.12 * drift; camPos.y += (Math.sin(T * 0.07) * 0.08 + 0.15 * Math.sin(extra * 0.6)) * drift;
+    // Only if the page could ever scroll on past the grown daisy (it ends there now), the daisy would step back, lower right.
+    const back = ease(clamp01(extra * 3)), A = tune.after;
+    if (back > 0) {
+      tmp.set(-LF.fieldW * A.shiftRight * back, LF.fieldH * A.shiftDown * back, 0);
+      camPos.add(tmp); camTgt.add(tmp); camPos.z += LF.dist * A.pullBack * back;
+    }
     const w = 0.25 * seg(pS, 0.75, 0.8) * parK;
     camPos.x += par.x * w; camPos.y += par.y * w * 0.6;
   }
@@ -478,6 +505,8 @@ function update(dt) {
   camera.lookAt(camTgt);
   camera.fov = fov;
   camera.updateProjectionMatrix();
+  // builders only build during the journey; by the light at its end every one is back in the wind
+  if (companions && entered) updateCompanions(companions, COMPANION_SECTIONS, { camera, W, H, tune, on: 1 - seg(pS, 0.62, 0.66) });
 
   const camSpeed = dt > 0 ? camPos.distanceTo(prevCam) / dt : 0;
   prevCam.copy(camPos);
@@ -613,7 +642,11 @@ function loop(now) {
 requestAnimationFrame(loop);
 if (SHOT) {
   // put the page where the shot is, so the DOM layer matches the 3D layer
-  const place = () => { computeBeats(); window.scrollTo(0, scrollFor(shot.p, shot.x)); };
+  const place = () => {
+    computeBeats();
+    const head = shot.sec && document.querySelector('#' + CSS.escape(shot.sec) + ' .sec-head');
+    window.scrollTo(0, head ? layoutTop(head) - shot.y * innerHeight : scrollFor(shot.p, shot.x));
+  };
   if (!Q.has('gate')) document.documentElement.classList.remove('locked');
   addEventListener('load', place); setTimeout(place, 50);
 }
@@ -627,4 +660,4 @@ function seek(p, ex = 0) {
   scrollTo(0, y);
   return y;
 }
-window.__v8 = { get state() { return { pS, extra, T, tier: tier.name, entered, ready, W, H, dpr }; }, raw: rawProgress, seek, pause: (b) => { paused = !!b; }, setDprCap: (c) => { dprCap = c || 9; resize(true); }, camera, renderer, post, layout: () => layout, applyTier, TIERS, sound, sky, scene, tune, seeds: () => mainSys };
+window.__v8 = { get state() { return { pS, extra, T, tier: tier.name, entered, ready, W, H, dpr }; }, raw: rawProgress, seek, pause: (b) => { paused = !!b; }, setDprCap: (c) => { dprCap = c || 9; resize(true); }, camera, renderer, post, layout: () => layout, applyTier, TIERS, sound, sky, scene, tune, seeds: () => mainSys, companions: () => companions };

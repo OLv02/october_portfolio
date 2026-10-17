@@ -3,6 +3,7 @@
 // that share its exact pose. Additive blending, no depth test, raw (unmanaged) colour, like the rest of the scene.
 import * as THREE from './vendor/three.module.min.js';
 import { PATH_GLSL, TUN } from './path.js';
+import { COMPANION_GLSL } from './companion-shader.js';
 
 // ---------- the seed atlas: 37 curved filaments with barbs, a stalk and a seed body ----------
 export const POINTS_PER_SEED = 4;
@@ -42,6 +43,28 @@ export function createSeedAtlas(random) {
   return tex;
 }
 
+// ---------- the wind, shared by the seeds and the section companions (js/companions.js) ----------
+// Needs aTun = [slot 0..105, box x, box y, random], uTime, uTravel, uFlightHalfExtent, uFlutter, uLoops, PATH_GLSL and TAU.
+export const WIND_GLSL = /* glsl */`
+// stable depth slots along the flight path, recycled around the camera, in a box that fills the screen
+vec3 windAt(float h, out float slot, out float across, out float k, out float caught){
+  slot = mod(aTun.x - uTime * .18 - uTravel + 24., 105.) + uTravel - 24.;
+  vec3 P, N, B; pathFrame(slot, P, N, B);
+  float hx = uFlightHalfExtent.x, hy = uFlightHalfExtent.y;
+  across = mod(aTun.y * 2. * hx - uTime * (.45 + .55 * h) + hx, 2. * hx) - hx;
+  float vertical = aTun.z * 2. * hy + sin(uTime * .45 + h * 15.) * .25 * uFlutter;
+  vec3 wind = P + N * across + B * vertical;
+  // now and then a seed is caught by a gust and turns a loop that travels with it
+  float cyc = fract(uTime * .027 + h * 7.3);
+  k = clamp((cyc - .28) / .24, 0., 1.); caught = step(.82, fract(h * 23.71)) * uLoops;
+  return wind + N * sin(k * TAU) * .75 * caught + B * (1. - cos(k * TAU)) * .6 * caught;
+}
+// how the free wind seed fades: behind the camera, far ahead, and at the box's side edges
+float windFog(float slot, float across){
+  float ahead = slot - uTravel, edge = abs(across) / uFlightHalfExtent.x * 12.;
+  return smoothstep(-23., -12., ahead) * (1. - smoothstep(45., 79., ahead)) * (1. - smoothstep(8., 12., edge));
+}`;
+
 // ---------- one pose for both the seeds and their attached points ----------
 const POSE = /* glsl */`
 attribute vec4 aScat, aTun, aCoast, aLock, aPlant;
@@ -58,6 +81,9 @@ uniform vec3 uLandO, uFromBase, uCamR, uCamU, uCamF;
 ${PATH_GLSL}
 const float TAU = 6.2831853;
 const vec2 HUB = vec2(0., 222. / 512. - .5);
+
+${WIND_GLSL}
+${COMPANION_GLSL}
 
 // p, sprite size (world), angle, colour, alpha; compact = globe sprite mode; plantMix = drawn as a round plant point;
 // kids = how visible the attached filament points are
@@ -82,15 +108,8 @@ void seedPose(out vec3 p, out float size, out float angle, out vec3 colour, out 
   // ---- the wind: stable depth slots along the flight path, recycled around the camera, in a box that fills the screen
   float outer = clamp(dist / (R * 2.), 0., 1.);
   float morph = smoothstep(.44 + .12 * (1. - outer), .70 + .12 * (1. - outer), uDive);
-  float slot = mod(aTun.x - uTime * .18 - uTravel + 24., 105.) + uTravel - 24.;
-  vec3 P, N, B; pathFrame(slot, P, N, B);
-  float hx = uFlightHalfExtent.x, hy = uFlightHalfExtent.y;
-  float across = mod(aTun.y * 2. * hx - uTime * (.45 + .55 * h) + hx, 2. * hx) - hx;
-  float vertical = aTun.z * 2. * hy + sin(uTime * .45 + h * 15.) * .25 * uFlutter;
-  vec3 wind = P + N * across + B * vertical;
-  // now and then a seed is caught by a gust and turns a loop that travels with it
-  float cyc = fract(uTime * .027 + h * 7.3), k = clamp((cyc - .28) / .24, 0., 1.), caught = step(.82, fract(h * 23.71)) * uLoops;
-  wind += N * sin(k * TAU) * .75 * caught + B * (1. - cos(k * TAU)) * .6 * caught;
+  float slot, across, k, caught, hx = uFlightHalfExtent.x;
+  vec3 wind = windAt(h, slot, across, k, caught);
   // Blown opening, one breath from the right, streamlined from dandelion research (Shields et al. 2025; Cummins et
   // al. 2018). Seeds facing the breath and on the rim let go first; the far (left) side holds on longest, so a clump
   // around Ottawa lingers, then follows on a gentler tail of the breath. Seeds are so light they
@@ -178,6 +197,9 @@ void seedPose(out vec3 p, out float size, out float angle, out vec3 colour, out 
     }
   }
 
+  // ---- the section companions: builder seeds leave the wind for their section's object (js/companion-shader.js)
+  companionPose(p, size, angle, colour, alpha, plantMix, h);
+
   // ---- a breath of air under the pointer
   if (uMouse.w > .001 && uInteract > .001) {
     vec2 dm = p.xy - uMouse.xy; float dd = length(dm) + 1e-4;
@@ -201,7 +223,7 @@ void main(){
   vCompact = compact; vPlant = plantMix;
 }`;
 
-const SEED_FRAG = /* glsl */`
+export const SEED_FRAG = /* glsl */`
 uniform sampler2D uSeedAtlas;
 varying vec3 vColour;
 varying float vAngle, vAlpha, vCompact, vPlant;
@@ -239,7 +261,7 @@ void main(){
   vAlpha = alpha * .6 * kids * (1. - compact) * (1. - plantMix) * smoothstep(.35, 1.1, depth) * uOp;
 }`;
 
-const KID_FRAG = /* glsl */`
+export const KID_FRAG = /* glsl */`
 varying vec3 vColour;
 varying float vAlpha;
 void main(){
@@ -271,6 +293,12 @@ export function createMainSystem(data, N, eye, atlas) {
   const uv = new Float32Array(total * K * 2), anchors = atlas.userData.anchors;
   for (let i = 0; i < total; i++) for (let j = 0; j < K; j++) uv.set(anchors[j], (i * K + j) * 2);
   kg.setAttribute('aDotUV', new THREE.BufferAttribute(uv, 2));
+  // section companion builders: every third seed is half A, the next every third half B (the landing seeds never build)
+  const comp = Float32Array.from({ length: total }, (_, i) => (i % 3 === 1 ? 1 : i % 3 === 2 ? 2 : 0));
+  for (const r of [0, 7, 19]) if (r < total) comp[r] = 0;
+  g.setAttribute('aComp', new THREE.BufferAttribute(comp, 1));
+  kg.setAttribute('aComp', new THREE.BufferAttribute(Float32Array.from({ length: total * K }, (_, i) => comp[Math.floor(i / K)]), 1));
+  for (const geo of [g, kg]) for (const name of ['aObjLock', 'aObjTun']) geo.setAttribute(name, new THREE.BufferAttribute(new Float32Array(geo.attributes.aComp.count * 4), 4));
 
   const u = {
     uSeedAtlas: { value: atlas }, uTime: { value: 12 }, uIntro: { value: 0 }, uDive: { value: 0 }, uTravel: { value: 0 },
@@ -284,6 +312,8 @@ export function createMainSystem(data, N, eye, atlas) {
     uPlantScale: { value: 3.6 }, uPlantBrightness: { value: 1.2 }, uSway: { value: 1.1 }, uShowRoots: { value: 1 }, uLeafGain: { value: 1 / 3 }, uWarm: { value: 0 }, uLandingSpread: { value: 1 },
     uLandO: { value: new THREE.Vector3() }, uFromBase: { value: new THREE.Vector3() },
     uCamR: { value: new THREE.Vector3(1, 0, 0) }, uCamU: { value: new THREE.Vector3(0, 1, 0) }, uCamF: { value: new THREE.Vector3(0, 0, -1) },
+    uKind: { value: new THREE.Vector2(0, 1) }, uProg: { value: new THREE.Vector2() }, uPres: { value: new THREE.Vector2() }, uScale: { value: new THREE.Vector2(1, 1) }, uBright: { value: new THREE.Vector2(1, 1) },
+    uLightK: { value: new THREE.Vector2() }, uRest: { value: new THREE.Vector2(1, 1) }, uC0: { value: new THREE.Vector3() }, uC1: { value: new THREE.Vector3() }, uCompOn: { value: 0 }, uCompDot: { value: 1 },
     uEye: { value: eye.clone() }, uLt: { value: TUN.L },
   };
   const seeds = new THREE.Points(g, additive(SEED_VERT, SEED_FRAG, u));

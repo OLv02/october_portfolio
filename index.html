@@ -105,7 +105,7 @@
     <p class="geo-label" id="ottawa" aria-hidden="true">Ottawa <small>45.42° N · 75.70° W</small></p>
   </section>
 
-  <!-- these ride over the journey through the seeds -->
+  <!-- these ride over the journey through the seeds, About through Awards -->
   <div id="flight" class="content">
     <!-- 01 ABOUT -->
     <section class="sec" id="about" aria-labelledby="about-h">
@@ -132,7 +132,7 @@
 
     <!-- 02 WORK -->
     <section class="sec" id="work" aria-labelledby="work-h">
-      <div class="sec-head reveal"><p class="idx">02</p><h2 id="work-h">Work</h2></div>
+      <div class="sec-head reveal"><p class="idx">02</p><h2 id="work-h">Work</h2><div class="companion-slot" aria-hidden="true"></div></div>
       <ol class="jobs">
         <li class="job card reveal">
           <div class="job-body">
@@ -200,7 +200,7 @@
     <!-- 03 HIGHLIGHTS: missions abroad and delegations (the original's Networking section, repurposed).
          Each card takes an optional photo: <img src="assets/img/….webp" width="…" height="…" alt="…" loading="lazy" decoding="async"> as its first child. -->
     <section class="sec" id="highlights" aria-labelledby="highlights-h">
-      <div class="sec-head reveal"><p class="idx">03</p><h2 id="highlights-h">Highlights</h2></div>
+      <div class="sec-head reveal"><p class="idx">03</p><h2 id="highlights-h">Highlights</h2><div class="companion-slot" aria-hidden="true"></div></div>
       <div class="highlights">
         <figure class="highlight card reveal">
           <figcaption>
@@ -218,17 +218,10 @@
         </figure>
       </div>
     </section>
-  </div>
 
-  <!-- two beats with nothing in the way: through the sun, then the vault opens -->
-  <div id="beat-sun" class="beat" aria-hidden="true"></div>
-  <div id="beat-vault" class="beat beat-vault" aria-hidden="true"></div>
-
-  <!-- the rest of the page scrolls over the open vault -->
-  <div id="after" class="content">
     <!-- 04 LEADERSHIP (the original's Projects section, repurposed) -->
     <section class="sec" id="leadership" aria-labelledby="leadership-h">
-      <div class="sec-head reveal"><p class="idx">04</p><h2 id="leadership-h">Leadership</h2></div>
+      <div class="sec-head reveal"><p class="idx">04</p><h2 id="leadership-h">Leadership</h2><div class="companion-slot" aria-hidden="true"></div></div>
       <div class="projects">
         <article class="proj card reveal">
           <p class="mono">SPROTT STUDENT CONSULTING GROUP · JAN – APR 2024</p>
@@ -250,7 +243,7 @@
 
     <!-- 05 WRITING: the latest posts from the blog (site.js fills this from its RSS feed; these two cards stay if it can't) -->
     <section class="sec" id="writing" aria-labelledby="writing-h">
-      <div class="sec-head reveal"><p class="idx">05</p><h2 id="writing-h">Writing</h2></div>
+      <div class="sec-head reveal"><p class="idx">05</p><h2 id="writing-h">Writing</h2><div class="companion-slot" aria-hidden="true"></div></div>
       <h3 class="sub reveal">Latest posts</h3>
       <div class="essays" id="essays" aria-live="polite">
         <a class="essay card more reveal" href="https://olv02.github.io/blog/"><p class="mono">BLOG</p><h4>Notes on investment, Ottawa and international business</h4><p class="go">Read the blog ↗</p></a>
@@ -260,7 +253,7 @@
 
     <!-- 06 EDUCATION -->
     <section class="sec" id="education" aria-labelledby="education-h">
-      <div class="sec-head reveal"><p class="idx">06</p><h2 id="education-h">Education</h2></div>
+      <div class="sec-head reveal"><p class="idx">06</p><h2 id="education-h">Education</h2><div class="companion-slot" aria-hidden="true"></div></div>
       <div class="edu">
         <article class="edu-card card reveal">
           <div class="edu-body">
@@ -283,7 +276,7 @@
 
     <!-- 07 AWARDS -->
     <section class="sec" id="awards" aria-labelledby="awards-h">
-      <div class="sec-head reveal"><p class="idx">07</p><h2 id="awards-h">Awards</h2></div>
+      <div class="sec-head reveal"><p class="idx">07</p><h2 id="awards-h">Awards</h2><div class="companion-slot" aria-hidden="true"></div></div>
       <div class="awards">
         <article class="award card reveal">
           <p class="mono">CARLETON UNIVERSITY · 2024</p>
@@ -304,7 +297,7 @@
 
     <!-- 08 CONTACT -->
     <section class="sec" id="contact" aria-labelledby="contact-h">
-      <div class="sec-head reveal"><p class="idx">08</p><h2 id="contact-h">Let's talk</h2></div>
+      <div class="sec-head reveal"><p class="idx">08</p><h2 id="contact-h">Let's talk</h2><div class="companion-slot" aria-hidden="true"></div></div>
       <div class="contact card reveal">
         <div class="contact-main">
           <p class="contact-lede">Exploring Ottawa for your company, planning a delegation, or just want to connect? Email is the fastest way to reach me.</p>
@@ -322,12 +315,20 @@
           </ul>
         </nav>
       </div>
-      <footer class="site-foot">
-        <p><b>Owen Lavender</b> · Foreign Direct Investment Specialist · Ottawa</p>
-        <p>© <span id="year">2026</span> Owen Lavender · <a href="#top" data-go>Back to the top ↑</a></p>
-        <p class="credit" data-i18n-html="credit">Built on <a href="https://realarmaansidhu.com/" target="_blank" rel="noopener">Armaan Sidhu's</a> site code, with three.js</p>
-      </footer>
     </section>
+  </div>
+
+  <!-- the daisy ending, in the back pocket (config plant.ending, or ?daisy): two beats past Let's talk with nothing in
+       the way, the warm light and three seeds landing, then the daisy grows, rooted just above the footer. Hidden when off. -->
+  <div id="beat-sun" class="beat" aria-hidden="true"></div>
+  <div id="beat-vault" class="beat beat-vault" aria-hidden="true"></div>
+
+  <div id="after" class="content">
+    <footer class="site-foot">
+      <p><b>Owen Lavender</b> · Foreign Direct Investment Specialist · Ottawa</p>
+      <p>© <span id="year">2026</span> Owen Lavender · <a href="#top" data-go>Back to the top ↑</a></p>
+      <p class="credit" data-i18n-html="credit">Built on <a href="https://realarmaansidhu.com/" target="_blank" rel="noopener">Armaan Sidhu's</a> site code, with three.js</p>
+    </footer>
   </div>
 </main>
 
