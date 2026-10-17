@@ -35,7 +35,7 @@ const GROUPS = [
 ];
 const NEEDS_COUNT = new Set(['seeds']), NEEDS_LAYOUT = new Set(['plant.scale', 'landing.plantRight']);
 
-export function initTune(tune, { info, onCount, onLayout, onPlant }) {
+export function initTune(tune, { info, onCount, onLayout, onPlant, onFont }) {
   const pathOf = (k) => (PROFILE_KEYS.includes(k) ? 'profile.' + k : k);
   const snapshot = () => {
     const out = { profileName: tune.profileName, profile: { ...tune.profile } };
@@ -57,6 +57,7 @@ export function initTune(tune, { info, onCount, onLayout, onPlant }) {
     <div class="tune-body">
       <p class="tune-info" aria-live="polite"></p>
       <label class="tune-row tune-select">Profile <select data-k="profileName"><option value="mobile">mobile</option><option value="desktop">desktop</option></select></label>
+      <label class="tune-row tune-select">Heading font <select data-k="look.font"><option value="fraunces">Fraunces</option><option value="georgia">Georgia (original)</option></select></label>
       <label class="tune-row tune-select">Globe <select data-k="globe.mode"><option value="coast">compact + coast</option><option value="compact">compact</option><option value="current">current</option></select></label>
       <label class="tune-row tune-select">Daisy <select data-k="plant.variant"><option value="pair">approved pair</option><option value="original">six-leaf reference</option></select></label>
       <label class="tune-row tune-check"><input type="checkbox" data-k="plant.showRoots"> Roots visible</label>
@@ -91,6 +92,7 @@ export function initTune(tune, { info, onCount, onLayout, onPlant }) {
   const sync = () => {
     for (const { k, input, out } of inputs) { input.value = get(tune, pathOf(k)); out.textContent = input.value; }
     root.querySelector('[data-k="profileName"]').value = tune.profileName;
+    root.querySelector('[data-k="look.font"]').value = tune.look.font;
     root.querySelector('[data-k="globe.mode"]').value = tune.globe.mode;
     root.querySelector('[data-k="plant.variant"]').value = tune.plant.variant;
     root.querySelector('[data-k="plant.showRoots"]').checked = tune.plant.showRoots;
@@ -105,6 +107,7 @@ export function initTune(tune, { info, onCount, onLayout, onPlant }) {
     tune.profileName = e.target.value; Object.assign(tune.profile, PROFILES[tune.profileName]);
     onCount(); persist(); sync();
   });
+  root.querySelector('[data-k="look.font"]').addEventListener('change', (e) => { tune.look.font = e.target.value; onFont(); persist(); });
   root.querySelector('[data-k="globe.mode"]').addEventListener('change', (e) => { tune.globe.mode = e.target.value; persist(); });
   root.querySelector('[data-k="plant.variant"]').addEventListener('change', (e) => { tune.plant.variant = e.target.value; onPlant(); persist(); });
   root.querySelector('[data-k="plant.showRoots"]').addEventListener('change', (e) => { tune.plant.showRoots = e.target.checked; persist(); });
@@ -115,7 +118,7 @@ export function initTune(tune, { info, onCount, onLayout, onPlant }) {
   root.querySelector('[data-a="reset"]').addEventListener('click', () => {
     for (const k of ['look', 'globe', 'plant', 'landing', 'flight', 'render', 'companions', 'after']) Object.assign(tune[k], structuredClone(CONFIG[k]));
     Object.assign(tune.profile, PROFILES[tune.profileName]);
-    onCount(); onLayout(); onPlant(); persist(); sync();
+    onCount(); onLayout(); onPlant(); onFont(); persist(); sync();
   });
   const json = () => JSON.stringify(snapshot(), null, 2);
   root.querySelector('[data-a="copy"]').addEventListener('click', async (e) => {

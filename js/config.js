@@ -17,6 +17,7 @@ export const CONFIG = {
     pointStrength: 0.3,         // the four small points on each seed's filaments; 0 skips drawing them
     titleBrightness: 1.6,       // saved for the optional particle name; not used in the story
     titleWhiteness: 0,
+    font: 'fraunces',           // the heading face (17 Oct): 'fraunces', or 'georgia' (the original)
   },
   globe: {
     mode: 'coast',              // selected: 'coast' (compact + coast), 'compact', or 'current'

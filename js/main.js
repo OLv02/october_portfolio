@@ -87,6 +87,9 @@ Object.assign(tune, { profile: { ...PROFILES[tune.profileName] } });
 // the daisy ending is kept in the back pocket (config plant.ending); without it the page ends at Let's talk and the flight
 // never reaches the light
 const ENDING = tune.plant.ending || Q.has('daisy');
+// the heading face (config look.font; style.css maps it): Fraunces, or the original Georgia
+const applyFont = () => { document.documentElement.dataset.font = tune.look.font; };
+applyFont();
 document.documentElement.classList.toggle('ending', ENDING);
 const seedBudget = () => Math.min(tune.profile.seeds, TIER_SEEDS[tier.name] || tune.structure.capacity, tune.structure.capacity);
 
@@ -184,9 +187,9 @@ if (Q.has('tune')) {
     initTune(tune, {
       info: () => `${tune.profileName} profile · ${mainSys ? mainSys.count : 0} of ${tune.structure.capacity} seeds drawn (${tier.name} tier caps at ${TIER_SEEDS[tier.name]}) · ` +
         `DPR ${dpr} · point cap ${Math.min(64 * dpr, maxPointHW)}px · linear output, colour management off`,
-      onCount: recount, onLayout: () => resize(true), onPlant: rebuildPlant,
+      onCount: recount, onLayout: () => resize(true), onPlant: rebuildPlant, onFont: () => { applyFont(); resize(true); },
     });
-    recount(); rebuildPlant(); resize(true);
+    recount(); rebuildPlant(); applyFont(); resize(true);
   }).catch((e) => console.error(e));
 }
 
