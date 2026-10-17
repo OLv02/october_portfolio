@@ -18,14 +18,14 @@ const LABELS = {
   'companions.compass.size': 'Compass size (Leadership)', 'companions.quill.size': 'Quill size (Writing)', 'companions.fern.size': 'Fern size (Education)',
   'companions.laurel.size': 'Laurel size (Awards)', 'companions.envelope.size': 'Envelope size (Let\'s talk)',
   'after.pullBack': 'Daisy steps back', 'after.shiftRight': 'Daisy shifts right', 'after.shiftDown': 'Daisy shifts down',
-  'render.companionGain': 'Companion gain (tone curve)',
+  'render.companionGain': 'Companion gain (tone curve)', 'render.companionScale': 'Companion scale (all)',
   'render.globeGain': 'Globe gain (tone curve)', 'render.occluder': 'Globe backing',
   'flight.halfHeight': 'Field half height', 'flight.minHalfWidth': 'Field min half width', 'flight.motionEase': 'Travel settle (s)',
 };
 const GROUPS = [
   ['Seeds · profile', PROFILE_KEYS],
   ['Look', ['look.backgroundBrightness', 'look.pointStrength']],
-  ['Companion render', ['render.companionGain']],
+  ['Companion render', ['render.companionGain', 'render.companionScale']],
   ['Globe', ['globe.brightness', 'globe.aperture', 'globe.blowDive', 'globe.compactScale', 'render.globeGain', 'render.occluder']],
   ['Journey', ['flight.halfHeight', 'flight.minHalfWidth', 'flight.motionEase']],
   ['Light & landing', ['landing.light', 'landing.spread', 'landing.plantRight']],
