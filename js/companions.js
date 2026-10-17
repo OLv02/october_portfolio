@@ -79,8 +79,8 @@ export function createCompanions(main) {
 //   presence: the half's builders leave the drift (fading out in place) while the stage is still below the screen
 //     (stage top 160% → 110% of the viewport height) and rejoin it once the stage is gone above (bottom −5% → −45%),
 //     so the bud is already there the moment the stage comes into view and nothing is seen flying to it;
-//   growth: 0 → the rest pose over half a screen of scrolling (the stage's centre from 95% to 45% of the viewport
-//     height); scrolling back up draws it back into the bud.
+//   growth: 0 → the rest pose over 70% of a screen of scrolling (the stage's centre from 95% to 25% of the viewport
+//     height, three quarters of the way up); scrolling back up draws it back into the bud.
 // Reversible, no timers; it only moves when the reader scrolls, so reduced motion keeps it.
 const _c = new THREE.Vector3();
 export function updateCompanions(sys, sections, { camera, W, H, tune, on = 1 }) {
@@ -93,7 +93,7 @@ export function updateCompanions(sys, sections, { camera, W, H, tune, on = 1 }) 
   u.uCompDot.value = Math.min(1.9, Math.max(1, Math.sqrt(3600 / Math.max(1, sys.drawnPerHalf()))));
   const state = sections.map((s) => {
     const slot = s.slot.getBoundingClientRect(), mid = slot.top + slot.height / 2;
-    const grow = Math.min(1, Math.max(0, (0.95 * vh - mid) / (0.5 * vh)));
+    const grow = Math.min(1, Math.max(0, (0.95 * vh - mid) / (0.7 * vh)));
     const arrive = Math.min(1, Math.max(0, (1.6 * vh - slot.top) / (0.5 * vh)));
     const leave = Math.min(1, Math.max(0, (slot.bottom + 0.45 * vh) / (0.4 * vh)));
     const k = slot.width > 0 ? Math.min(arrive, leave) : 0;
