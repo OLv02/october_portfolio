@@ -84,6 +84,10 @@ const COMPANION_SECTIONS = [['work', 'bridge', 0], ['highlights', 'seedling', 1]
 // The live copy of the settings: the committed defaults from config.js, plus the device profile's seed look
 const tune = { ...structuredClone(CONFIG), profileName: profileFor({ phone: device.phone, width: innerWidth }) };
 Object.assign(tune, { profile: { ...PROFILES[tune.profileName] } });
+// the daisy ending is kept in the back pocket (config plant.ending); without it the page ends at Let's talk and the flight
+// never reaches the light
+const ENDING = tune.plant.ending || Q.has('daisy');
+document.documentElement.classList.toggle('ending', ENDING);
 const seedBudget = () => Math.min(tune.profile.seeds, TIER_SEEDS[tier.name] || tune.structure.capacity, tune.structure.capacity);
 
 // ---------- scroll → flight: beats anchored to the page, so the words and the flight stay in step ----------
@@ -98,13 +102,15 @@ function computeBeats() {
   // and the opening plays behind it (finishing with About's heading about 40% down the screen). The daisy is the reward
   // for scrolling on past Let's talk: it finishes growing just before the bottom of the page, the footer beneath it.
   const end = document.documentElement.scrollHeight - vh;
-  const k = [[0, 0], [0.12 * vh, 0.05], [fTop - 0.35 * vh, 0.22], [fEnd - 0.35 * vh, 0.66], [docTop(vaultBeat) - 0.1 * vh, 0.72], [Math.min(docTop(afterEl) - 0.82 * vh, end - 2), 1]];
+  const k = ENDING
+    ? [[0, 0], [0.12 * vh, 0.05], [fTop - 0.35 * vh, 0.22], [fEnd - 0.35 * vh, 0.66], [docTop(vaultBeat) - 0.1 * vh, 0.72], [Math.min(docTop(afterEl) - 0.82 * vh, end - 2), 1]]
+    : [[0, 0], [0.12 * vh, 0.05], [fTop - 0.35 * vh, 0.22], [end, 0.6]];   // the wind journey runs to the foot of the page
   for (let i = 1; i < k.length; i++) k[i][0] = Math.max(k[i][0], k[i - 1][0] + 1);
   beats = k;
 }
 function progressAt(y) {
   const last = beats[beats.length - 1];
-  if (y >= last[0]) return { p: 1, ex: (y - last[0]) / innerHeight };
+  if (y >= last[0]) return { p: last[1], ex: last[1] < 1 ? 0 : (y - last[0]) / innerHeight };
   for (let i = 1; i < beats.length; i++) {
     if (y < beats[i][0]) { const [y0, p0] = beats[i - 1], [y1, p1] = beats[i]; return { p: p0 + ((y - y0) / (y1 - y0)) * (p1 - p0), ex: 0 }; }
   }

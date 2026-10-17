@@ -213,6 +213,9 @@ html.menu-open, html.menu-open body { overflow: hidden; }
 .beat { height: calc(var(--vhs) * 0.25); }
 .beat-vault { height: calc(var(--vhs) * 1.25); }
 #after .site-foot { margin-top: 0; }
+/* the daisy ending is in the back pocket (config plant.ending): no beats, and the footer follows Let's talk */
+html:not(.ending) .beat { display: none; }
+html:not(.ending) #after .site-foot { margin-top: 12vh; }
 
 /* Each section rises into place as it arrives and settles back as it leaves. site.js sets --in (0 → 1) and
    --out (0 → 1) from the scroll position; 2D transforms only, so the frosted cards keep their blur everywhere. */

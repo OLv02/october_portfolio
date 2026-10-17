@@ -30,6 +30,8 @@ export const CONFIG = {
     bank: false,
   },
   plant: {                      // the approved ivory daisy (proof v27, "This daisy is perfect")
+    ending: false,              // in the back pocket: true puts the warm light, the landings and the daisy back at the foot of
+                                // the page, past Let's talk (?daisy previews it)
     variant: 'pair',            // one opposing pair of the original leaves on a short stem; 'original' = six-leaf reference
     brightness: 1.2,
     sway: 1.1,
