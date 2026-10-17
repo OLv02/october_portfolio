@@ -117,7 +117,7 @@ export function updateCompanions(sys, sections, { camera, W, H, tune, on = 1 }) 
     const cfg = tune.companions[cur.s.name];
     // the slot is a small stage: frame the object on it the way the proof frames it on its own page
     const r = cur.slot, stageH = (r.height / H) * 2 * D * tH, stageW = (r.width / W) * 2 * D * tH * aspect;
-    const S = Math.min(stageW * def.frame.w, stageH * def.frame.h) * cfg.size;
+    const S = Math.min(stageW * def.frame.w, stageH * def.frame.h) * cfg.size * tune.render.companionScale;
     const nx = ((r.left + r.width / 2) / W) * 2 - 1, ny = 1 - ((r.top + r.height / 2) / H) * 2;
     _c.copy(camera.position).addScaledVector(u.uCamF.value, D)
       .addScaledVector(u.uCamR.value, nx * D * tH * aspect).addScaledVector(u.uCamU.value, ny * D * tH + def.frame.y * stageH);

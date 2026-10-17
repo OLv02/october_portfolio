@@ -58,6 +58,7 @@ export const CONFIG = {
     globeGain: 1.5,             // extra gain on the globe's seeds
     occluder: 0.55,             // how strongly the soft disc behind the globe hides the canopy light
     companionGain: 1.3,         // extra gain on the formed companions, for the same tone curve (their own brightness stays as approved)
+    companionScale: 1.2,        // every companion 20% bigger on its stage (17 Oct); their own sizes stay as approved
   },
   // The section companions (approved objects and settings from the through-fern package), built from the background
   // seeds themselves; size scales the object on its stage (.companion-slot in style.css).
@@ -90,6 +91,6 @@ export const RANGES = {
   'companions.compass.size': [0.3, 2, 0.05], 'companions.quill.size': [0.3, 2, 0.05], 'companions.fern.size': [0.3, 2, 0.05],
   'companions.laurel.size': [0.3, 2, 0.05], 'companions.envelope.size': [0.3, 2, 0.05],
   'after.pullBack': [0, 1.5, 0.05], 'after.shiftRight': [-0.3, 0.4, 0.01], 'after.shiftDown': [-0.2, 0.4, 0.01],
-  'render.globeGain': [0.5, 4, 0.05], 'render.occluder': [0, 1, 0.05], 'render.companionGain': [0.5, 3, 0.05],
+  'render.globeGain': [0.5, 4, 0.05], 'render.occluder': [0, 1, 0.05], 'render.companionGain': [0.5, 3, 0.05], 'render.companionScale': [0.5, 2, 0.05],
   'flight.halfHeight': [8, 30, 0.5], 'flight.minHalfWidth': [6, 20, 0.5], 'flight.motionEase': [0.02, 0.5, 0.01],
 };
