@@ -48,9 +48,14 @@ void companionPose(inout vec3 p, inout float size, inout float angle, inout vec3
   vec3 local = aObjLock.xyz, structure;
   float objAlpha = .62, objSize = .085 * S / 7. * uCompDot, turn = 1., inkStart = -1.;
   bool dust = false; float dustFade = 1.;
+  // where the object grows from (its starting bud, in local units) and each seed's place in the growth, 0 first .. 1 last
+  vec3 bud = vec3(0.); float order = 0.;
 
   if (kind < .5) {          // Little bridge
     structure = part < .5 ? vec3(.73, .69, .48) : part < 1.5 ? vec3(1., .95, .76) : part < 2.5 ? vec3(.66, .78, .52) : vec3(.53, .60, .38);
+    // from a footing on each bank: the posts rise, then the deck and rails reach across to meet in the middle
+    bud = vec3(sign(local.x) * .744, -.39, 0.);
+    order = .5 * (1. - abs(local.x) / .744) + .3 * clamp((local.y + .39) / .55, 0., 1.) + (part > .5 && part < 1.5 ? .2 : 0.);
   } else if (kind < 1.5) {  // spotlit seedling: its drifting seeds keep moving down the beam
     dust = part > 3.5;
     if (dust) {
@@ -64,12 +69,18 @@ void companionPose(inout vec3 p, inout float size, inout float angle, inout vec3
     objAlpha = dust ? (.16 + .22 * aObjTun.y) * dustFade : part > 1.5 ? .35 : .8;
     objSize = dust ? (.018 + .045 * aObjTun.z) * S * uCompDot : objSize;
     turn = .75;
+    // from a seed in the moss: the stem comes up, then the two leaves open
+    bud = vec3(0., -.42, 0.); order = clamp((aObjTun.x - .08) / .82, 0., 1.);
   } else if (kind < 2.5) {  // compass, with facet lighting and hidden back faces from its data
     structure = part < .5 ? vec3(1., .83, .42) : part < 1.5 ? vec3(.48, .57, .30) : part < 2.5 ? vec3(.64, .68, .48) : part < 3.5 ? vec3(1., .94, .67) : part < 4.5 ? vec3(.42, .62, .40) : vec3(.42, .50, .29);
     structure *= aObjTun.y;
     objAlpha = (part > 1.5 && part < 2.5 ? .25 : .78) * aObjTun.z;
+    // from the pivot at its centre out to the rim
+    order = clamp(length(local.xy) / .75, 0., 1.);
   } else if (kind < 3.5) {  // quill; its one ink trail writes on over local .72-.96
     if (part > 3.5) inkStart = .72 + aObjTun.x * .18;
+    // from the nib up the shaft, the vanes opening behind it
+    bud = vec3(-.43, -.705, 0.); order = clamp((aObjTun.x - .04) / .86, 0., 1.);
     structure = part < .5 ? vec3(.94, .83, .49) : part < 1.5 ? vec3(1., .96, .81) : part < 2.5 ? vec3(.77, .86, .63) : part < 3.5 ? vec3(.70, .76, .56) : vec3(.94, .87, .64);
   } else {                  // fern: the fronds unroll over .55-1 as the seeds arrive
     float s = aObjTun.x, curl = 0.;
@@ -90,23 +101,32 @@ void companionPose(inout vec3 p, inout float size, inout float angle, inout vec3
     }
     structure = part < .5 ? vec3(.86, .82, .50) : part < 1.5 ? vec3(.52, .74, .40) : part < 2.5 ? vec3(.74, .88, .56) : vec3(.40, .54, .28);
     structure = mix(structure, vec3(1., .90, .60), curl * .5);   // the curled fiddlehead tips carry a warm golden fuzz
+    // from the crown at the base, up each frond (and the fronds unroll as they grow)
+    bud = vec3(.03, -.56, 0.); order = part > 2.5 ? 0. : clamp(s, 0., 1.);
     objAlpha = part > 2.5 ? .35 : part > .5 && part < 1.5 ? .55 : .75;
   }
 
-  // the object's local frame faces the camera, at its stage on screen (proof +z = towards the viewer)
-  vec3 target = centre + (uCamR * local.x + uCamU * local.y - uCamF * local.z) * S;
-  // Nearest first: the seeds drifting closest to their spot are caught first and the pull spreads outward.
-  float dist = length(p - target), delay = .55 * clamp(dist / 30., 0., 1.);
-  float g = inkStart >= 0. ? smoothstep(inkStart, inkStart + .06, bp) : smoothstep(delay, delay + .45, bp);
-  float formed = dust ? 0. : g;
-  // Riding the wind in: a gusty, curling path that sweeps wide in mid-flight, still tumbling until it lands.
-  float sw = sin(g * 3.14159265), a = h * TAU + uTime * .35;
+  // The object's local frame faces the camera, at its stage on screen (proof +z = towards the viewer).
+  #define TO_WORLD(v) (centre + (uCamR * (v).x + uCamU * (v).y - uCamF * (v).z) * S)
+  vec3 target = TO_WORLD(local);
+  // A small clump at the bud, so the starting stage reads as a seed rather than a single point.
+  vec3 jit = vec3(fract(h * 71.3) - .5, fract(h * 37.9) - .5, fract(h * 13.1) - .5) * vec3(.16, .11, .06);
+  vec3 seed = TO_WORLD(bud + jit);
+  // Each seed is caught from the wind just before its turn in the growth (nearest seeds a little earlier), rides the
+  // wind into the bud, and grows straight out of it to its place: the base forms first and the shape grows from there.
+  // The quill's ink still writes on at the end; the seedling's drifting seeds go straight to the light.
+  float dist = length(p - seed), c = .04 + .62 * order + .08 * clamp(dist / 30., 0., 1.);
+  float g1 = smoothstep(c, c + .16, bp);
+  float grow = inkStart >= 0. ? smoothstep(inkStart, inkStart + .06, bp) : dust ? g1 : smoothstep(c + .10, c + .28, bp);
+  float sw = sin(g1 * 3.14159265), a = h * TAU + uTime * .35;
   vec3 curlOff = (uCamR * cos(a) + uCamU * sin(a) * .7) * sw * min(dist * .22, S * .8) + uCamU * sw * sw * S * .12;
-  p = mix(p, target, g * g * (3. - 2. * g)) + curlOff;
-  angle = mix(angle + sw * 2.2 * (fract(h * 31.) - .5), angle * (1. - turn), smoothstep(.55, 1., g));
-  colour = mix(colour, structure * bright, g);
-  alpha = mix(alpha, objAlpha, g);
-  size = mix(size, objSize, smoothstep(0., .7, g));
-  plantMix = max(plantMix, formed);
+  vec3 atBud = mix(p, seed, g1 * g1 * (3. - 2. * g1)) + curlOff;
+  p = mix(atBud, target, grow * grow * (3. - 2. * grow));
+  angle = mix(angle + sw * 2.2 * (fract(h * 31.) - .5), angle * (1. - turn), smoothstep(.55, 1., g1));
+  vec3 budColour = vec3(1., .95, .80) * bright;   // the bud is ivory, like the seeds; it takes its colours as it grows
+  colour = mix(mix(colour, budColour, g1), structure * bright, grow);
+  alpha = mix(alpha, mix(.32, objAlpha, grow), g1);
+  size = mix(size, objSize, smoothstep(0., .7, g1));
+  plantMix = max(plantMix, dust ? 0. : g1);
 }
 `;
