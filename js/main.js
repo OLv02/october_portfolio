@@ -78,7 +78,7 @@ if (EMBED && Q.get('safe')) Q.get('safe').split(',').forEach((v, i) => document.
 
 let mainSys = null, occluder = null, companions = null;
 // each section companion's stage (.companion-slot) and heading; the two halves of the companion population alternate
-const COMPANION_SECTIONS = [['work', 'bridge', 0], ['highlights', 'seedling', 1], ['leadership', 'compass', 0], ['writing', 'quill', 1], ['education', 'fern', 0]]
+const COMPANION_SECTIONS = [['work', 'bridge', 0], ['highlights', 'seedling', 1], ['leadership', 'compass', 0], ['writing', 'quill', 1], ['education', 'fern', 0], ['awards', 'laurel', 1], ['contact', 'envelope', 0]]
   .map(([id, name, half]) => { const sec = $(id); return sec && { name, half, slot: sec.querySelector('.companion-slot'), head: sec.querySelector('.sec-head') }; })
   .filter((s) => s && s.slot && s.head);
 // The live copy of the settings: the committed defaults from config.js, plus the device profile's seed look
@@ -268,7 +268,7 @@ let ready = false;
     scene.add(mainSys.points, mainSys.kids, occluder);
     // the section companions are built from these same seeds (two thirds of them are builders; see js/companions.js)
     companions = createCompanions(mainSys);
-    scene.add(companions.light);
+    scene.add(companions.light, companions.reserve);
     if (Q.has('tune')) rebuildPlant();   // a remembered ?tune variant may have arrived after the worker started
     applyTier(tier);
     progress(1);

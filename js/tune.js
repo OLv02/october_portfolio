@@ -16,6 +16,7 @@ const LABELS = {
   'landing.light': 'Warm light', 'landing.spread': 'Landing spread', 'landing.plantRight': 'Plant offset (wide)',
   'companions.bridge.size': 'Bridge size (Work)', 'companions.seedling.size': 'Seedling size (Highlights)', 'companions.seedling.light': 'Seedling canopy light',
   'companions.compass.size': 'Compass size (Leadership)', 'companions.quill.size': 'Quill size (Writing)', 'companions.fern.size': 'Fern size (Education)',
+  'companions.laurel.size': 'Laurel size (Awards)', 'companions.envelope.size': 'Envelope size (Let\'s talk)',
   'after.pullBack': 'Daisy steps back', 'after.shiftRight': 'Daisy shifts right', 'after.shiftDown': 'Daisy shifts down',
   'render.companionGain': 'Companion gain (tone curve)',
   'render.globeGain': 'Globe gain (tone curve)', 'render.occluder': 'Globe backing',
@@ -29,7 +30,7 @@ const GROUPS = [
   ['Journey', ['flight.halfHeight', 'flight.minHalfWidth', 'flight.motionEase']],
   ['Light & landing', ['landing.light', 'landing.spread', 'landing.plantRight']],
   ['Daisy', ['plant.brightness', 'plant.sway', 'plant.scale']],
-  ['Companions', ['companions.bridge.size', 'companions.seedling.size', 'companions.seedling.light', 'companions.compass.size', 'companions.quill.size', 'companions.fern.size']],
+  ['Companions', ['companions.bridge.size', 'companions.seedling.size', 'companions.seedling.light', 'companions.compass.size', 'companions.quill.size', 'companions.fern.size', 'companions.laurel.size', 'companions.envelope.size']],
   ['After the flight', ['after.pullBack', 'after.shiftRight', 'after.shiftDown']],
 ];
 const NEEDS_COUNT = new Set(['seeds']), NEEDS_LAYOUT = new Set(['plant.scale', 'landing.plantRight']);

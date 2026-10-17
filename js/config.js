@@ -65,6 +65,8 @@ export const CONFIG = {
     compass: { brightness: 1.2, size: 0.7 },              // Leadership: tabletop compass
     quill: { brightness: 0.5, size: 0.85 },               // Writing: quill with one ink trail
     fern: { brightness: 0.8, size: 0.85 },                // Education: unfurling fern
+    laurel: { brightness: 1.1, size: 0.85 },              // Awards: open laurel, mirrored, rooted growth (v52)
+    envelope: { brightness: 1, size: 0.9 },               // Let's talk: open envelope, sprout curving right (v52, in review)
   },
   // as Let's talk scrolls up the daisy steps back, lower right, beside the contact text (provisional composition)
   after: { pullBack: 0.5, shiftRight: 0.2, shiftDown: 0.12 },
@@ -84,6 +86,7 @@ export const RANGES = {
   'landing.light': [0, 2, 0.05], 'landing.spread': [0.25, 2, 0.05], 'landing.plantRight': [0, 0.3, 0.01],
   'companions.bridge.size': [0.3, 2, 0.05], 'companions.seedling.size': [0.3, 2, 0.05], 'companions.seedling.light': [0, 4, 0.1],
   'companions.compass.size': [0.3, 2, 0.05], 'companions.quill.size': [0.3, 2, 0.05], 'companions.fern.size': [0.3, 2, 0.05],
+  'companions.laurel.size': [0.3, 2, 0.05], 'companions.envelope.size': [0.3, 2, 0.05],
   'after.pullBack': [0, 1.5, 0.05], 'after.shiftRight': [-0.3, 0.4, 0.01], 'after.shiftDown': [-0.2, 0.4, 0.01],
   'render.globeGain': [0.5, 4, 0.05], 'render.occluder': [0, 1, 0.05], 'render.companionGain': [0.5, 3, 0.05],
   'flight.halfHeight': [8, 30, 0.5], 'flight.minHalfWidth': [6, 20, 0.5], 'flight.motionEase': [0.02, 0.5, 0.01],

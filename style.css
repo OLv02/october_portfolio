@@ -227,6 +227,7 @@ html.menu-open, html.menu-open body { overflow: hidden; }
    Provisional composition, for review. */
 .companion-slot { position: absolute; left: 0; right: 0; bottom: calc(100% + 2vh); height: min(24vh, 210px); pointer-events: none; }
 @media (min-width: 760px) { .companion-slot { left: 36%; width: 34%; bottom: -2vh; height: min(42vh, 400px); } }
+@media (max-width: 759px) { #contact .companion-slot { right: 58%; } }   /* the daisy stands centre-right above Let's talk on a phone */
 .idx { font: 500 12px var(--mono); letter-spacing: 0.2em; color: var(--sage); margin-bottom: 10px; text-shadow: 0 1px 12px rgba(var(--black-rgb), 0.9); }
 .idx::after { content: ''; display: inline-block; vertical-align: middle; width: 34px; height: 1px; margin-left: 12px; background: rgba(var(--sage-rgb), 0.55); }
 .content h2 { font-family: var(--display); font-size: clamp(40px, 11vw, 86px); font-weight: 400; letter-spacing: -0.04em; line-height: 1; text-shadow: 0 2px 14px rgba(var(--black-rgb), 0.7); }

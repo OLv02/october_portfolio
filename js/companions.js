@@ -1,6 +1,6 @@
 // The section companions: seed-made objects beside their sections' headings (Work: the Little bridge, Highlights: the
-// spotlit seedling, Leadership: the compass, Writing: the quill, Education: the fern). Ported from the Windborne proof's
-// section objects.
+// spotlit seedling, Leadership: the compass, Writing: the quill, Education: the fern, Awards: the open laurel, Let's
+// talk: the open envelope with its sprout). Ported from the Windborne proof's section objects.
 //
 // They are built from the real background seeds. Two thirds of the main system's seeds are builders, in two halves
 // (aComp in particles.js), so one section's object can still be on screen while the next one forms. Each object is
@@ -8,6 +8,12 @@
 // half's builders quietly leave the drift; on screen the object grows out of a small bud as you scroll down and draws
 // back into it as you scroll up; once the stage is gone they rejoin the drift. A half switches to another object only while none of its builders is away from the wind,
 // so no seed ever jumps. The shader side is js/companion-shader.js.
+//
+// From the landing on, every drawn seed belongs to the daisy, so the objects there (the end of the laurel, and the
+// envelope) are made by a reserve: the next seeds of the same capacity, past the drawn count, which are never part of the
+// drift and only ever show a formed object. While the light comes in (flight progress .62-.66) the flight's builders
+// hand the object over to the reserve's builders of the same half, which hold another sampling of the same shape in the
+// same pose, and go on to become the daisy.
 import * as THREE from './vendor/three.module.min.js';
 import { POINTS_PER_SEED } from './particles.js';
 import { COMPANIONS } from './companion-data.js';
@@ -56,7 +62,16 @@ export function createCompanions(main) {
     main.uniforms.uKind.value.setComponent(h, COMPANIONS[name].kind);
   }
   const drawnPerHalf = () => members[0].filter((i) => i < main.count).length;
-  return { light, lightU, loaded, load, uniforms: main.uniforms, def: (name) => COMPANIONS[name], drawnPerHalf };
+  // the reserve: the same attributes, drawn from the end of the main draw range, with its own hand-over switch
+  const rg = new THREE.BufferGeometry();
+  for (const [name, attr] of Object.entries(g.attributes)) rg.setAttribute(name, attr);
+  const ru = { ...main.uniforms, uCompOn: { value: 0 } };
+  const reserve = new THREE.Points(rg, new THREE.ShaderMaterial({
+    vertexShader: main.points.material.vertexShader, fragmentShader: main.points.material.fragmentShader, uniforms: ru,
+    defines: { COMP_ONLY: '' }, transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending,
+  }));
+  reserve.frustumCulled = false; reserve.renderOrder = 10;
+  return { light, lightU, reserve, reserveU: ru, loaded, load, uniforms: main.uniforms, def: (name) => COMPANIONS[name], drawnPerHalf, main };
 }
 
 // The scroll side: which section each half is showing, how far its object has grown, and where its stage is.
@@ -69,7 +84,11 @@ export function createCompanions(main) {
 // Reversible, no timers; it only moves when the reader scrolls, so reduced motion keeps it.
 const _c = new THREE.Vector3();
 export function updateCompanions(sys, sections, { camera, W, H, tune, on = 1 }) {
-  const u = sys.uniforms, vh = innerHeight;
+  const u = sys.uniforms, vh = innerHeight, n = sys.main.count;
+  // on: the flight's builders (1) or, from the landing on, the reserve's (0)
+  sys.reserve.geometry.setDrawRange(n, Math.max(0, Math.min(sys.main.total - n, n)));
+  sys.reserve.visible = on < 1;
+  sys.reserveU.uCompOn.value = 1 - on;
   // the drawn builders per half; fewer seeds than the proof's 3,600 get proportionally larger points, so the shape reads
   u.uCompDot.value = Math.min(1.9, Math.max(1, Math.sqrt(3600 / Math.max(1, sys.drawnPerHalf()))));
   const state = sections.map((s) => {
@@ -92,7 +111,7 @@ export function updateCompanions(sys, sections, { camera, W, H, tune, on = 1 }) 
     const want = mine.reduce((a, b) => (b.k > (a ? a.k : 0) ? b : a), null);
     // switch object only while every builder of this half is back in the wind
     if (want && want.k > 0 && (!cur || cur.k === 0) && want.s.name !== sys.loaded[h]) { sys.load(h, want.s.name); cur = want; }
-    const def = cur && sys.def(cur.s.name), pres = cur ? cur.k * on : 0, prog = cur ? def.rest * cur.grow : 0;
+    const def = cur && sys.def(cur.s.name), pres = cur ? cur.k : 0, prog = cur ? def.rest * cur.grow : 0;
     u.uPres.value.setComponent(h, pres); u.uProg.value.setComponent(h, prog);
     if (!cur || pres <= 0) continue;
     const cfg = tune.companions[cur.s.name];

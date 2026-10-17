@@ -2,7 +2,8 @@
 // Each builder returns { lock, tun } exactly as the proof does (the same random streams, so the proof's geometry checks
 // apply): lock = [x, y, z, part] in the object's own units, the camera looking down -z; tun = per-object metadata.
 // Only the approved variants are here: the Little bridge, the spotlit seedling (two leaves at y = -.06), the tabletop
-// compass, the quill with one ink trail, and the unfurling fern.
+// compass, the quill with one ink trail, the unfurling fern, and (v52 package) the open laurel and the open envelope
+// with its right-curving sprout.
 import { mulberry32 as seeded } from './build-data.js';
 
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -227,6 +228,97 @@ export function buildFern(count) {
   return { lock, tun };
 }
 
+// ---------- Awards: the open laurel (two mirrored branches of twelve leaves, rooted growth) ----------
+export const LAUREL = { brightness: 1.1, size: 0.85 };
+// Each right-hand leaf as [base, tip, edge A controls (2), edge B controls (2)] in the reference's pixels; the left
+// branch is the exact mirror (x -> 588 - x).
+const LAUREL_R = [
+  [[376, 57], [315, 23], [344, 66], [327, 45], [365, 28], [338, 16]],
+  [[397, 79], [326, 78], [365, 56], [343, 62], [365, 107], [341, 91]],
+  [[421, 101], [403, 16], [388, 75], [390, 45], [436, 73], [424, 42]],
+  [[437, 126], [368, 108], [409, 100], [387, 100], [406, 139], [382, 126]],
+  [[451, 153], [462, 62], [430, 122], [439, 88], [480, 119], [476, 83]],
+  [[456, 180], [390, 149], [429, 140], [408, 144], [423, 195], [403, 176]],
+  [[456, 201], [494, 123], [454, 159], [477, 134], [495, 181], [503, 147]],
+  [[451, 238], [512, 188], [469, 202], [494, 194], [494, 234], [509, 211]],
+  [[439, 266], [409, 188], [395, 231], [399, 204], [439, 235], [425, 206]],
+  [[421, 288], [506, 251], [458, 244], [488, 246], [465, 293], [491, 278]],
+  [[374, 324], [399, 254], [364, 292], [383, 271], [400, 306], [402, 274]],
+  [[394, 313], [472, 316], [424, 293], [452, 297], [433, 346], [460, 331]],
+];
+const LAUREL_LEAVES = [...LAUREL_R.map((shape) => ({ side: -1, shape: shape.map(([x, y]) => [588 - x, y]) })), ...LAUREL_R.map((shape) => ({ side: 1, shape }))];
+const cubic = (a, b, c, d, t) => { const u = 1 - t; return a.map((v, k) => u * u * u * v + 3 * u * u * t * b[k] + 3 * u * t * t * c[k] + t * t * t * d[k]); };
+const laurelWorld = (p, z = 0) => [(p[0] - 294) / 210, (190 - p[1]) / 210, z];
+const LAUREL_STEM = [[[330, 347], [414, 320], [463, 240], [456, 176]], [[456, 176], [454, 115], [407, 73], [376, 57]]];
+const laurelStem = (t) => { const s = Math.min(0.999999999, Math.max(0, t)) * 2, i = Math.floor(s); return laurelWorld(cubic(...LAUREL_STEM[i], t === 1 ? 1 : s - i)); };
+function laurelLeaf(index, t, across = 0) {
+  const [base, tip, a, b, c, d] = LAUREL_LEAVES[index].shape, edgeA = cubic(base, a, b, tip, t), edgeB = cubic(base, c, d, tip, t), mix = (across + 1) / 2;
+  return laurelWorld(edgeA.map((v, k) => v * (1 - mix) + edgeB[k] * mix), 0.025 * Math.sin(Math.PI * t) * (1 - across * across));
+}
+// where each leaf's petiole meets the stem (the nearest of 501 samples, as the proof finds it)
+const LAUREL_ATTACH = LAUREL_LEAVES.map(({ shape }) => {
+  const b = laurelWorld(shape[0]); let t = 0, best = Infinity;
+  for (let k = 0; k <= 500; k++) { const q = k / 500, p = laurelStem(q), d = (p[0] - b[0]) ** 2 + (p[1] - b[1]) ** 2; if (d < best) { best = d; t = q; } }
+  return t;
+});
+const laurelPetiole = (index, t) => { const a = laurelStem(LAUREL_ATTACH[index]), b = laurelLeaf(index, 0); return a.map((v, k) => v + (b[k] - v) * t); };
+// The growth metadata the proof carries in three extra attributes (aGrowBase/Axis/Info) depends only on the leaf, so it
+// lives in a table compiled into the shader: per right-hand leaf, its base, its final axis (base to tip) and its node.
+export const LAUREL_GROW = LAUREL_R.map((_, j) => {
+  const i = LAUREL_R.length + j, base = laurelLeaf(i, 0), tip = laurelLeaf(i, 1);
+  return [base[0], base[1], tip[0] - base[0], tip[1] - base[1], LAUREL_ATTACH[i]];
+});
+// lock = the approved v48 pose + palette part; tun = [rank, random, growth kind (0 stem, 1 petiole, 2 blade), leaf].
+// Adjacent seeds are exact mirrors (jitter, rank and palette included), so every even prefix is equally dense both sides.
+export function buildLaurel(count) {
+  const r = seeded(94173), lock = new Float32Array(count * 4), tun = new Float32Array(count * 4);
+  for (let i = 0; i < count; i += 2) {
+    const c = r(); let p, rank, part, kind, leaf = 0;
+    if (c < 0.09) { const t = r(); p = laurelStem(t); rank = t; part = 0; kind = 0; }
+    else {
+      const index = LAUREL_R.length + Math.floor(r() * LAUREL_R.length), t = r(); rank = LAUREL_ATTACH[index] + t * 0.045; leaf = index - LAUREL_R.length;
+      if (c < 0.14) { p = laurelPetiole(index, t); part = 0; kind = 1; }
+      else {
+        const across = c < 0.37 ? (r() < 0.5 ? -1 : 1) : c < 0.51 ? (r() - 0.5) * 0.06 : r() * 2 - 1;
+        p = laurelLeaf(index, t, across); part = c < 0.51 ? 1 : index % 2 ? 3 : 2; kind = 2;
+      }
+    }
+    for (let k = 0; k < 3; k++) p[k] += (r() - 0.5) * 0.003;
+    const meta = [Math.min(1, rank), r(), kind, leaf];
+    lock.set([...p, part], i * 4); tun.set(meta, i * 4);
+    if (i + 1 < count) { lock.set([-p[0], p[1], p[2], part], (i + 1) * 4); tun.set(meta, (i + 1) * 4); }
+  }
+  return { lock, tun };
+}
+
+// ---------- Contact: the open envelope, its back flap raised, a two-leaf sprout curving right ----------
+export const ENVELOPE = { brightness: 1, size: 0.9, leafNodeX: 0.14, leafNodeY: 0.4 };
+const envelopeSproutStem = (t) => [ENVELOPE.leafNodeX * t * t, -0.12 + 0.52 * t, 0.055];
+const envelopeSproutLeaf = (side, t, w = 0) => { const b = envelopeSproutStem(1); return [b[0] + side * (0.36 * t - 0.69 * w), b[1] + 0.28 * t + 0.73 * w, b[2] + 0.018 * Math.sin(Math.PI * t)]; };
+const ENVELOPE_OUTLINE = [[-0.68, 0.03], [0.68, 0.03], [0.68, -0.61], [-0.68, -0.61], [-0.68, 0.03]];
+const ENVELOPE_SEAMS = [[[-0.68, 0.03], [0, -0.34]], [[0.68, 0.03], [0, -0.34]], [[-0.68, -0.61], [0, -0.19]], [[0.68, -0.61], [0, -0.19]]];
+const envelopeLine = (a, b, t, z) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, z];
+function envelopeFlap(side, t) {
+  const u = 1 - t, a = [side * 0.68, 0.03], b = [side * 0.34, 0.4], c = [0, 0.57];
+  return [u * u * a[0] + 2 * u * t * b[0] + t * t * c[0], u * u * a[1] + 2 * u * t * b[1] + t * t * c[1], -0.04];
+}
+// lock part: outline 0, seams 1, flap 2, fill 3, sprout stem 4, sprout leaves 5; tun = [random rank, along t, across w, side]
+export function buildEnvelope(count) {
+  const r = seeded(56273), lock = new Float32Array(count * 4), tun = new Float32Array(count * 4);
+  for (let i = 0; i < count; i++) {
+    const c = r(), t = r(), side = r() < 0.5 ? -1 : 1; let p, part, w = 0;
+    if (c < 0.17) { const edge = Math.floor(r() * 4); p = envelopeLine(ENVELOPE_OUTLINE[edge], ENVELOPE_OUTLINE[edge + 1], t, 0.02); part = 0; }
+    else if (c < 0.32) { const edge = ENVELOPE_SEAMS[Math.floor(r() * 4)]; p = envelopeLine(...edge, t, 0.035); part = 1; }
+    else if (c < 0.44) { p = envelopeFlap(side, t); part = 2; }
+    else if (c < 0.58) { p = [(r() * 2 - 1) * 0.67, -0.6 + r() * 0.62, 0]; part = 3; }
+    else if (c < 0.69) { p = envelopeSproutStem(t); part = 4; }
+    else { w = 0.087 * Math.sin(Math.PI * t) * (r() < 0.6 ? (r() < 0.5 ? -1 : 1) : r() * 2 - 1); p = envelopeSproutLeaf(side, t, w); part = 5; }
+    p[0] += (r() - 0.5) * 0.003; p[1] += (r() - 0.5) * 0.003;
+    lock.set([...p, part], i * 4); tun.set([r(), t, w, side], i * 4);
+  }
+  return { lock, tun };
+}
+
 // Each object's kind index (the shader branches on it) and its framing on a stage, taken from the proof studies'
 // centred view: scale = min(stageW * w, stageH * h) * size, centre offset = y * stageH.
 export const COMPANIONS = {
@@ -235,4 +327,6 @@ export const COMPANIONS = {
   compass: { kind: 2, build: buildCompass, cfg: COMPASS, frame: { w: 0.35, h: 0.37, y: 0 }, rest: 1 },
   quill: { kind: 3, build: buildQuill, cfg: QUILL, frame: { w: 0.35, h: 0.37, y: 0 }, rest: 1 },
   fern: { kind: 4, build: buildFern, cfg: FERN, frame: { w: 0.44, h: 0.5, y: 0.02 }, rest: 1 },
+  laurel: { kind: 5, build: buildLaurel, cfg: LAUREL, frame: { w: 0.35, h: 0.37, y: 0 }, rest: 1 },
+  envelope: { kind: 6, build: buildEnvelope, cfg: ENVELOPE, frame: { w: 0.35, h: 0.37, y: 0 }, rest: 1 },
 };
