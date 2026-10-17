@@ -68,7 +68,7 @@ export const CONFIG = {
     laurel: { brightness: 1.1, size: 0.85 },              // Awards: open laurel, mirrored, rooted growth (v52)
     envelope: { brightness: 1, size: 0.9 },               // Let's talk: open envelope, sprout curving right (v52, in review)
   },
-  // as Let's talk scrolls up the daisy steps back, lower right, beside the contact text (provisional composition)
+  // the daisy now finishes at the foot of the page, so this step-back only applies if content is ever added after it
   after: { pullBack: 0.5, shiftRight: 0.2, shiftDown: 0.12 },
   // the light and landing sequence runs over this part of the page's flight progress
   segments: { dive: [0.05, 0.25], landing: [0.66, 1] },

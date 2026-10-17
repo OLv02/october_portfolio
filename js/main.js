@@ -87,17 +87,18 @@ Object.assign(tune, { profile: { ...PROFILES[tune.profileName] } });
 const seedBudget = () => Math.min(tune.profile.seeds, TIER_SEEDS[tier.name] || tune.structure.capacity, tune.structure.capacity);
 
 // ---------- scroll → flight: beats anchored to the page, so the words and the flight stay in step ----------
-// [scroll y, flight progress]: the hero holds · dive into the eye · the journey runs under About through Awards ·
-// through the sun · the vault opens · then the rest of the page scrolls over the open vault (progress 1, "extra" screens)
+// [scroll y, flight progress]: the hero holds · dive into the eye · the journey runs under About through Let's talk ·
+// past the last section, an Easter egg: through the sun, the landings, and the daisy, fully grown at the foot of the page
 const flightEl = $('flight'), vaultBeat = $('beat-vault'), afterEl = $('after');
 let beats = [[0, 0], [1, 1]];
 const docTop = (el) => el.getBoundingClientRect().top + scrollY;
 function computeBeats() {
   const vh = innerHeight, fTop = docTop(flightEl), fEnd = fTop + flightEl.offsetHeight;
   // Content first, animation as the embellishment: the name holds only briefly, About starts rising as soon as it fades
-  // and the opening plays behind it (finishing with About's heading about 40% down the screen); Let's talk likewise
-  // arrives while the daisy is still opening.
-  const k = [[0, 0], [0.12 * vh, 0.05], [fTop - 0.35 * vh, 0.22], [fEnd - 0.35 * vh, 0.66], [docTop(vaultBeat) - 0.1 * vh, 0.72], [docTop(afterEl) - 0.82 * vh, 1]];
+  // and the opening plays behind it (finishing with About's heading about 40% down the screen). The daisy is the reward
+  // for scrolling on past Let's talk: it finishes growing just before the bottom of the page, the footer beneath it.
+  const end = document.documentElement.scrollHeight - vh;
+  const k = [[0, 0], [0.12 * vh, 0.05], [fTop - 0.35 * vh, 0.22], [fEnd - 0.35 * vh, 0.66], [docTop(vaultBeat) - 0.1 * vh, 0.72], [Math.min(docTop(afterEl) - 0.82 * vh, end - 2), 1]];
   for (let i = 1; i < k.length; i++) k[i][0] = Math.max(k[i][0], k[i - 1][0] + 1);
   beats = k;
 }
@@ -483,7 +484,7 @@ function update(dt) {
     // afterwards a slow breath of a drift while the rest of the page scrolls over the daisy
     const drift = REDUCED ? 0 : afterK;
     camPos.x += Math.sin(T * 0.11) * 0.12 * drift; camPos.y += (Math.sin(T * 0.07) * 0.08 + 0.15 * Math.sin(extra * 0.6)) * drift;
-    // As Let's talk scrolls up, the daisy steps back, lower and to the right, so it stays rooted beside the contact text.
+    // Only if the page could ever scroll on past the grown daisy (it ends there now), the daisy would step back, lower right.
     const back = ease(clamp01(extra * 3)), A = tune.after;
     if (back > 0) {
       tmp.set(-LF.fieldW * A.shiftRight * back, LF.fieldH * A.shiftDown * back, 0);
