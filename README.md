@@ -45,7 +45,7 @@ Useful URL flags: `?static` (the plain fallback page), `?lang=fr` / `?lang=de`, 
 | Coastline weights | `assets/coast.png`, from the Windborne handoff (same projection as `globe.png`; no generator yet) |
 | Screen-size framing | `js/layout.js` |
 | Latest blog posts | `js/site.js` reads `https://olv02.github.io/rss.xml` (the Astro blog in `OLv02.github.io`) |
-| Sound | `js/audio.js` (synthesized, no audio files) |
+| Sound (kept, switched off: the site is silent and has no sound button) | `js/audio.js` (synthesized, no audio files) |
 
 ### Changing the globe
 

@@ -23,10 +23,9 @@ const ROWS = [
   ['Look closer.', 'Regardez de plus près.', 'Sehen Sie genauer hin.'],
   ['Scroll to explore', 'Faites défiler pour explorer', 'Zum Erkunden scrollen'],
   ['Swipe to explore', 'Balayez pour explorer', 'Zum Erkunden wischen'],
-  ['Mute sound', 'Couper le son', 'Ton ausschalten'],
-  ['Turn sound on', 'Activer le son', 'Ton einschalten'],
   ['Language', 'Langue', 'Sprache'],
-  ['Owen Lavender, back to the top', 'Owen Lavender, retour en haut', 'Owen Lavender, zurück nach oben'],
+  ['Top', 'Haut', 'Oben'],
+  ['Back to the top', 'Retour en haut', 'Zurück nach oben'],
   ['Sections', 'Sections', 'Abschnitte'],
   ['Introduction', 'Introduction', 'Einführung'],
 
