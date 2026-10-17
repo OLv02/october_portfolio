@@ -313,30 +313,8 @@ function enter() {
   if (lenis) lenis.start();
   site.onEnter();
 }
-// Sound stays off until the visitor turns it on (and remembers that choice). Browsers only let audio start from a tap,
-// click or key press, so once it's wanted the first one anywhere on the page wakes it.
-let soundWanted = !SHOT && !EMBED && (() => { try { return localStorage.getItem('wb.sound') === '1'; } catch (e) { return false; } })();
-// The button shows what you'd actually hear: bars dancing once audio is playing, steady while it waits for that first
-// tap or key press, and flat when it's off.
-let soundUI = '';
-function setSoundUI(state) {
-  if (state === soundUI) return;
-  soundUI = state;
-  const b = $('sound');
-  b.dataset.on = state === 'on' ? '1' : state === 'armed' ? 'armed' : '0';
-  soundLabel();
-}
-const soundLabel = () => $('sound').setAttribute('aria-label', t(soundUI === 'off' ? 'Turn sound on' : 'Mute sound'));
-const soundState = () => (!soundWanted ? 'off' : sound.ctx && sound.ctx.state === 'running' && !sound.muted ? 'on' : 'armed');
-setSoundUI(soundState());
-const wakeSound = () => { if (soundWanted) sound.start(); };
-['pointerdown', 'touchstart', 'touchend', 'keydown'].forEach((ev) => addEventListener(ev, wakeSound, { capture: true, passive: true }));
-$('sound').addEventListener('click', () => {
-  soundWanted = !soundWanted;
-  try { localStorage.setItem('wb.sound', soundWanted ? '1' : '0'); } catch (e) { /* private mode */ }
-  if (soundWanted) { sound.start(); sound.setMuted(false); } else sound.setMuted(true);
-  setSoundUI(soundState());
-});
+// The sound (js/audio.js) is kept but never started: the site is silent, with no sound button, so sound.update and
+// sound.chime below do nothing.
 
 // ---------- your touch ----------
 const pointer = { ndc: new THREE.Vector2(), has: false, last: -9, world: new THREE.Vector3(), strength: 0 };
@@ -386,7 +364,7 @@ beforeLangChange(() => {
   if (el) langAnchor = { el, off: layoutTop(el) - scrollY };
 });
 onLangChange(() => {
-  gateText(); hintText(); soundLabel();
+  gateText(); hintText();
   resize(true);
   if (!langAnchor) return;
   const y = Math.max(0, layoutTop(langAnchor.el) - langAnchor.off);
@@ -602,7 +580,6 @@ function update(dt) {
   if (growth > 0.92 && !cues.chime) { cues.chime = true; sound.chime(); }
   if (growth < 0.4) cues.chime = false;
   sound.update({ act, speed: spd, tunnel: tunnelGate, sun: lightK });
-  setSoundUI(soundState());
 
   // --- words on screen
   const heroOp = sm(0.55, 1, introT) * (1 - sm(0.02, 0.075, pS));

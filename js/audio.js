@@ -1,4 +1,4 @@
-// Sound, synthesized live with no audio files. Off until the visitor turns it on with the sound button.
+// Sound, synthesized live with no audio files. Kept in the back pocket: the site is silent and nothing starts it.
 // A soft open pad · wind that follows how fast you travel · a light leaf rustle in the journey ·
 // a warm swell in the light at the end · a quiet two-note chime when the daisy opens.
 // Provisional: no final sound palette has been chosen.
