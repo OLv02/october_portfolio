@@ -15,7 +15,7 @@ export const COMPANION_GLSL = /* glsl */`
 attribute vec4 aObjLock, aObjTun;   // the builder's spot in its half's current object, and that object's metadata
 attribute float aComp;              // 0 = not a builder, 1 = half A, 2 = half B
 // per half (x = A, y = B): which object, its build progress, scale, brightness, canopy light, rest pose
-uniform vec2 uKind, uProg, uScale, uBright, uLightK, uRest;
+uniform vec2 uKind, uProg, uPres, uScale, uBright, uLightK, uRest;   // uPres: 0 = in the wind, 1 = at the object
 uniform vec3 uC0, uC1;
 uniform float uCompOn, uCompDot;   // uCompDot: larger points when an object has fewer seeds than the proof's 3,600
 
@@ -39,8 +39,11 @@ vec3 fernFrame(vec2 base, float angle, float len, float arch, float f, float s){
 void companionPose(inout vec3 p, inout float size, inout float angle, inout vec3 colour, inout float alpha, inout float plantMix, float h){
   if (aComp < .5 || uCompOn < .001) return;
   float half_ = aComp - 1.5 > 0. ? 1. : 0.;
-  float prog = mix(uProg.x, uProg.y, half_);
-  if (prog <= 0.) return;
+  float prog = mix(uProg.x, uProg.y, half_), pres = mix(uPres.x, uPres.y, half_);
+  if (pres <= 0.) return;
+  // Leaving and rejoining the wind happens off screen: the builder fades out of the drift in place (and back in when its
+  // section has scrolled away), so no seed is ever seen flying to the object.
+  if (pres < 1.) { alpha *= 1. - pres; return; }
   float kind = mix(uKind.x, uKind.y, half_), S = mix(uScale.x, uScale.y, half_), bright = mix(uBright.x, uBright.y, half_);
   float light = mix(uLightK.x, uLightK.y, half_), bp = prog / mix(uRest.x, uRest.y, half_);
   vec3 centre = mix(uC0, uC1, half_);
@@ -112,21 +115,20 @@ void companionPose(inout vec3 p, inout float size, inout float angle, inout vec3
   // A small clump at the bud, so the starting stage reads as a seed rather than a single point.
   vec3 jit = vec3(fract(h * 71.3) - .5, fract(h * 37.9) - .5, fract(h * 13.1) - .5) * vec3(.16, .11, .06);
   vec3 seed = TO_WORLD(bud + jit);
-  // Each seed is caught from the wind just before its turn in the growth (nearest seeds a little earlier), rides the
-  // wind into the bud, and grows straight out of it to its place: the base forms first and the shape grows from there.
-  // The quill's ink still writes on at the end; the seedling's drifting seeds go straight to the light.
-  float dist = length(p - seed), c = .04 + .62 * order + .08 * clamp(dist / 30., 0., 1.);
-  float g1 = smoothstep(c, c + .16, bp);
-  float grow = inkStart >= 0. ? smoothstep(inkStart, inkStart + .06, bp) : dust ? g1 : smoothstep(c + .10, c + .28, bp);
-  float sw = sin(g1 * 3.14159265), a = h * TAU + uTime * .35;
-  vec3 curlOff = (uCamR * cos(a) + uCamU * sin(a) * .7) * sw * min(dist * .22, S * .8) + uCamU * sw * sw * S * .12;
-  vec3 atBud = mix(p, seed, g1 * g1 * (3. - 2. * g1)) + curlOff;
-  p = mix(atBud, target, grow * grow * (3. - 2. * grow));
-  angle = mix(angle + sw * 2.2 * (fract(h * 31.) - .5), angle * (1. - turn), smoothstep(.55, 1., g1));
+  // The starting stage is there as soon as the stage is on screen: a small bud at the object's base (a few of its seeds,
+  // the rest waiting unseen inside it). Scrolling down grows the shape out of the bud in its growth order; scrolling up
+  // draws it back in. The quill's ink still writes on at the end; the seedling's drifting seeds appear with its light.
+  float inBud = step(fract(h * 53.7), .08);
+  float grow = inkStart >= 0. ? smoothstep(inkStart, inkStart + .06, bp) : dust ? smoothstep(.25, .75, bp)
+             : smoothstep(.04 + .78 * order, .04 + .78 * order + .16, bp);
+  float gs = grow * grow * (3. - 2. * grow);
+  p = dust ? target : mix(seed, target, gs);
+  angle *= 1. - turn;
   vec3 budColour = vec3(1., .95, .80) * bright;   // the bud is ivory, like the seeds; it takes its colours as it grows
-  colour = mix(mix(colour, budColour, g1), structure * bright, grow);
-  alpha = mix(alpha, mix(.32, objAlpha, grow), g1);
-  size = mix(size, objSize, smoothstep(0., .7, g1));
-  plantMix = max(plantMix, dust ? 0. : g1);
+  colour = mix(budColour, structure * bright, smoothstep(0., .6, grow));
+  // seeds still inside the bud are unseen, except the few that make the bud; each one shows as it grows out
+  alpha = dust ? objAlpha * grow : mix(.32 * inBud, objAlpha, smoothstep(0., .3, grow));
+  size = objSize;
+  plantMix = dust ? 0. : 1.;
 }
 `;

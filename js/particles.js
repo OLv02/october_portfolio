@@ -312,7 +312,7 @@ export function createMainSystem(data, N, eye, atlas) {
     uPlantScale: { value: 3.6 }, uPlantBrightness: { value: 1.2 }, uSway: { value: 1.1 }, uShowRoots: { value: 1 }, uLeafGain: { value: 1 / 3 }, uWarm: { value: 0 }, uLandingSpread: { value: 1 },
     uLandO: { value: new THREE.Vector3() }, uFromBase: { value: new THREE.Vector3() },
     uCamR: { value: new THREE.Vector3(1, 0, 0) }, uCamU: { value: new THREE.Vector3(0, 1, 0) }, uCamF: { value: new THREE.Vector3(0, 0, -1) },
-    uKind: { value: new THREE.Vector2(0, 1) }, uProg: { value: new THREE.Vector2() }, uScale: { value: new THREE.Vector2(1, 1) }, uBright: { value: new THREE.Vector2(1, 1) },
+    uKind: { value: new THREE.Vector2(0, 1) }, uProg: { value: new THREE.Vector2() }, uPres: { value: new THREE.Vector2() }, uScale: { value: new THREE.Vector2(1, 1) }, uBright: { value: new THREE.Vector2(1, 1) },
     uLightK: { value: new THREE.Vector2() }, uRest: { value: new THREE.Vector2(1, 1) }, uC0: { value: new THREE.Vector3() }, uC1: { value: new THREE.Vector3() }, uCompOn: { value: 0 }, uCompDot: { value: 1 },
     uEye: { value: eye.clone() }, uLt: { value: TUN.L },
   };

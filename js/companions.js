@@ -4,9 +4,9 @@
 //
 // They are built from the real background seeds. Two thirds of the main system's seeds are builders, in two halves
 // (aComp in particles.js), so one section's object can still be on screen while the next one forms. Each object is
-// framed on its section's .companion-slot element (a stage placed by style.css). As the stage comes up the screen the
-// half's builders leave the wind for their spots, nearest first, riding the wind in; as it scrolls away at the top
-// they go back to the wind. A half switches to another object only while none of its builders is away from the wind,
+// framed on its section's .companion-slot element (a stage placed by style.css). Before the stage comes into view the
+// half's builders quietly leave the drift; on screen the object grows out of a small bud as you scroll down and draws
+// back into it as you scroll up; once the stage is gone they rejoin the drift. A half switches to another object only while none of its builders is away from the wind,
 // so no seed ever jumps. The shader side is js/companion-shader.js.
 import * as THREE from './vendor/three.module.min.js';
 import { POINTS_PER_SEED } from './particles.js';
@@ -59,11 +59,14 @@ export function createCompanions(main) {
   return { light, lightU, loaded, load, uniforms: main.uniforms, def: (name) => COMPANIONS[name], drawnPerHalf };
 }
 
-// The scroll side: which section each half is showing, how far its object is built, and where its stage is.
-// sections: [{ name, half, slot, head }]. A section's build runs 0 → its rest pose over half a screen of scrolling while
-// its stage is on screen (its centre moving from 95% to 45% of the viewport height), and runs back to 0 as the stage
-// leaves at the top (its bottom from 25% to −10%), returning the builders to the wind. Reversible, no timers; it only
-// moves when the reader scrolls, so reduced motion keeps it.
+// The scroll side: which section each half is showing, how far its object has grown, and where its stage is.
+// sections: [{ name, half, slot, head }].
+//   presence: the half's builders leave the drift (fading out in place) while the stage is still below the screen
+//     (stage top 160% → 110% of the viewport height) and rejoin it once the stage is gone above (bottom −5% → −45%),
+//     so the bud is already there the moment the stage comes into view and nothing is seen flying to it;
+//   growth: 0 → the rest pose over half a screen of scrolling (the stage's centre from 95% to 45% of the viewport
+//     height); scrolling back up draws it back into the bud.
+// Reversible, no timers; it only moves when the reader scrolls, so reduced motion keeps it.
 const _c = new THREE.Vector3();
 export function updateCompanions(sys, sections, { camera, W, H, tune, on = 1 }) {
   const u = sys.uniforms, vh = innerHeight;
@@ -71,10 +74,11 @@ export function updateCompanions(sys, sections, { camera, W, H, tune, on = 1 }) 
   u.uCompDot.value = Math.min(1.9, Math.max(1, Math.sqrt(3600 / Math.max(1, sys.drawnPerHalf()))));
   const state = sections.map((s) => {
     const slot = s.slot.getBoundingClientRect(), mid = slot.top + slot.height / 2;
-    const build = Math.min(1, Math.max(0, (0.95 * vh - mid) / (0.5 * vh)));
-    const stay = Math.min(1, Math.max(0, (slot.bottom + 0.1 * vh) / (0.35 * vh)));
-    const k = slot.width > 0 ? Math.min(build, stay) : 0;
-    return { s, slot, k };
+    const grow = Math.min(1, Math.max(0, (0.95 * vh - mid) / (0.5 * vh)));
+    const arrive = Math.min(1, Math.max(0, (1.6 * vh - slot.top) / (0.5 * vh)));
+    const leave = Math.min(1, Math.max(0, (slot.bottom + 0.45 * vh) / (0.4 * vh)));
+    const k = slot.width > 0 ? Math.min(arrive, leave) : 0;
+    return { s, slot, k, grow };
   });
   u.uCompOn.value = on;
   camera.updateMatrixWorld();
@@ -88,9 +92,9 @@ export function updateCompanions(sys, sections, { camera, W, H, tune, on = 1 }) 
     const want = mine.reduce((a, b) => (b.k > (a ? a.k : 0) ? b : a), null);
     // switch object only while every builder of this half is back in the wind
     if (want && want.k > 0 && (!cur || cur.k === 0) && want.s.name !== sys.loaded[h]) { sys.load(h, want.s.name); cur = want; }
-    const def = cur && sys.def(cur.s.name), prog = cur ? def.rest * cur.k : 0;
-    u.uProg.value.setComponent(h, prog * on);
-    if (!cur || prog <= 0) continue;
+    const def = cur && sys.def(cur.s.name), pres = cur ? cur.k * on : 0, prog = cur ? def.rest * cur.grow : 0;
+    u.uPres.value.setComponent(h, pres); u.uProg.value.setComponent(h, prog);
+    if (!cur || pres <= 0) continue;
     const cfg = tune.companions[cur.s.name];
     // the slot is a small stage: frame the object on it the way the proof frames it on its own page
     const r = cur.slot, stageH = (r.height / H) * 2 * D * tH, stageW = (r.width / W) * 2 * D * tH * aspect;
@@ -106,7 +110,7 @@ export function updateCompanions(sys, sections, { camera, W, H, tune, on = 1 }) 
       lightOn = true;
       sys.light.position.copy(_c).addScaledVector(u.uCamF.value, 0.25 * S / 6);
       sys.light.quaternion.copy(camera.quaternion); sys.light.scale.setScalar(S);
-      sys.lightU.uProgress.value = prog; sys.lightU.uStrength.value = cfg.light * on;
+      sys.lightU.uProgress.value = prog; sys.lightU.uStrength.value = cfg.light * pres;
     }
   }
   sys.light.visible = lightOn;
