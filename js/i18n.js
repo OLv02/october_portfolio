@@ -222,7 +222,7 @@ const BLOCKS = {
 
 // Strings that read the same in every language: names, programs, products, awards and contact details.
 const KEEP = new Set(['OL', 'Owen Lavender', 'Owen Lavender ·', 'OWEN', 'LAVENDER', 'Owen', 'Lavender', 'Ottawa', '45.42° N · 75.70° W', 'Global Runway CRM', 'Microsoft Copilot', 'Excel', 'Microsoft 365',
-  'OTTAWA · 2019 – 2025', 'OTTAWA · 2021', 'Universität Leipzig', 'Half Delegation of the Year', 'RSS', 'owen.lavender.02@gmail.com', 'in/owenlavender',
+  'OTTAWA · 2019 – 2025', 'OTTAWA · 2021', 'Universität Leipzig', 'Half Delegation of the Year', 'RSS', 'pleasant309@gmail.com', 'in/owenlavender',
   'olv02.github.io/blog', 'LinkedIn', 'EN', 'FR', 'DE']);
 
 const COL = { fr: 1, de: 2 };
